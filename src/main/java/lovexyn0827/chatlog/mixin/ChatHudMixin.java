@@ -1,9 +1,9 @@
 package lovexyn0827.chatlog.mixin;
 
-import net.minecraft.client.gui.hud.ChatHud;
-import net.minecraft.client.gui.hud.MessageIndicator;
-import net.minecraft.network.message.MessageSignatureData;
-import net.minecraft.text.Text;
+import net.minecraft.client.multiplayer.chat.GuiMessageTag;
+import net.minecraft.client.gui.components.ChatComponent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MessageSignature;
 import net.minecraft.util.Util;
 
 import java.lang.invoke.MethodHandle;
@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import lovexyn0827.chatlog.session.SessionRecorder;
 
-@Mixin(value = ChatHud.class, priority = 2023)
+@Mixin(value = ChatComponent.class, priority = 2023)
 public class ChatHudMixin {
 	private static final BooleanSupplier SHOULD_ADD_MESSAGE = Util.make(() -> {
 		try {
@@ -40,10 +40,12 @@ public class ChatHudMixin {
 		}
 	});
 	
-	@Inject(method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;"
-			+ "ILnet/minecraft/client/gui/hud/MessageIndicator;Z)V", at = @At("HEAD"), cancellable = false)
-	private void onMessage(Text message, @Nullable MessageSignatureData signature, int ticks, @Nullable MessageIndicator indicator, boolean refresh, CallbackInfo info) {
-		if(SessionRecorder.current() != null && !refresh && SHOULD_ADD_MESSAGE.getAsBoolean()) {
+	@Inject(method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;"
+			+ "Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V", 
+			at = @At("HEAD"), cancellable = false)
+	private void onMessage(Component message, @Nullable MessageSignature signature, 
+			net.minecraft.client.multiplayer.chat.GuiMessageSource source, @Nullable GuiMessageTag indicator, CallbackInfo info) {
+		if(SessionRecorder.current() != null && SHOULD_ADD_MESSAGE.getAsBoolean()) {
 			SessionRecorder.current().onMessage(Util.NIL_UUID, message);
 		}
 	}

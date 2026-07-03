@@ -10,13 +10,13 @@ import lovexyn0827.chatlog.export.FormatAdapter;
 import lovexyn0827.chatlog.i18n.I18N;
 import lovexyn0827.chatlog.session.Session;
 import lovexyn0827.chatlog.session.Session.Summary;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.CyclingButtonWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.toast.SystemToast;
-import net.minecraft.screen.ScreenTexts;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.util.Util;
 
 public class ExportSessionScreen extends Screen {
@@ -33,9 +33,9 @@ public class ExportSessionScreen extends Screen {
 			return f;
 		}
 	});
-	private TextFieldWidget fileName;
-	private CyclingButtonWidget<FormatAdapter.Factory<?>> format;
-	private CyclingButtonWidget<Boolean> openAfterExport;
+	private EditBox fileName;
+	private CycleButton<FormatAdapter.Factory<?>> format;
+	private CycleButton<Boolean> openAfterExport;
 	private final Summary sessionMeta;
 	
 	protected ExportSessionScreen(Screen parent,Summary summary) {
@@ -46,74 +46,72 @@ public class ExportSessionScreen extends Screen {
 	
 	@Override
 	protected void init() {
-		this.fileName = new TextFieldWidget(this.textRenderer, 
+		this.fileName = new EditBox(this.font, 
 				(int) (width * 0.3F), (int) (height * 0.25F), 
 				(int) (width * 0.4F), 14, 
 				I18N.translateAsText("gui.export.name"));
-		this.fileName.setText(Util.getFormattedCurrentTime());
-		this.format = CyclingButtonWidget.<FormatAdapter.Factory<?>>builder(FormatAdapter.Factory::getDisplayedText)
-				.values(FormatAdapter.FORMAT_FACTORIES)
-				.initially(FormatAdapter.FORMAT_FACTORIES.get(0))
-				.build((int) (width * 0.3F), (int) (height * 0.25F) + 25, 
+		this.fileName.setValue(Util.getFilenameFormattedDateTime());
+		this.format = CycleButton.<FormatAdapter.Factory<?>>builder(FormatAdapter.Factory::getDisplayedText, FormatAdapter.FORMAT_FACTORIES.get(0))
+				.withValues(FormatAdapter.FORMAT_FACTORIES)
+				.create((int) (width * 0.3F), (int) (height * 0.25F) + 25, 
 						(int) (width * 0.4F), 20, I18N.translateAsText("gui.export.format"));
-		this.openAfterExport = CyclingButtonWidget.onOffBuilder(ScreenTexts.YES, ScreenTexts.NO)
-				.initially(false)
-				.build((int) (width * 0.3F), (int) (height * 0.25F) + 50, 
+		this.openAfterExport = CycleButton.onOffBuilder(false)
+				.create((int) (width * 0.3F), (int) (height * 0.25F) + 50, 
 						(int) (width * 0.4F), 20, I18N.translateAsText("gui.export.open"));
-		this.addDrawableChild(this.fileName);
-		this.addDrawableChild(this.format);
-		this.addDrawableChild(this.openAfterExport);
-		this.addDrawableChild(ButtonWidget.builder(ScreenTexts.DONE, (btn) -> this.export())
-				.dimensions((int) (width * 0.3F), (int) (height * 0.25F) + 75, 
+		this.addRenderableWidget(this.fileName);
+		this.addRenderableWidget(this.format);
+		this.addRenderableWidget(this.openAfterExport);
+		this.addRenderableWidget(Button.builder(CommonComponents.GUI_DONE, (btn) -> this.export())
+				.bounds((int) (width * 0.3F), (int) (height * 0.25F) + 75, 
 						(int) (width * 0.19F), 20)
 				.build());
-		this.addDrawableChild(ButtonWidget.builder(ScreenTexts.CANCEL, (btn) -> this.close())
-				.dimensions((int) (width * 0.51F), (int) (height * 0.25F) + 75, 
+		this.addRenderableWidget(Button.builder(CommonComponents.GUI_CANCEL, (btn) -> this.onClose())
+				.bounds((int) (width * 0.51F), (int) (height * 0.25F) + 75, 
 						(int) (width * 0.19F), 20)
 				.build());
 	}
 
 	private void export() {
 		if (EXPORT_FOLDER == null) {
-			SystemToast warning = new SystemToast(new SystemToast.Type(), 
+			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.export.nodir"), 
 					I18N.translateAsText("gui.export.nodir.desc"));
-			MinecraftClient.getInstance().getToastManager().add(warning);
+			Minecraft.getInstance().getToastManager().addToast(warning);
 			return;
 		}
 		
 		String extension = this.format.getValue().getExtension();
 		Session session = this.sessionMeta.load();
 		if (session == null) {
-			SystemToast warning = new SystemToast(new SystemToast.Type(), 
+			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.sload.failure"), 
 					I18N.translateAsText("gui.sload.failure.desc"));
-			MinecraftClient.getInstance().getToastManager().add(warning);
+			Minecraft.getInstance().getToastManager().addToast(warning);
 		}
 		
-		File target = new File(EXPORT_FOLDER, this.fileName.getText() + "." + extension);
+		File target = new File(EXPORT_FOLDER, this.fileName.getValue() + "." + extension);
 		try (BufferedWriter w = new BufferedWriter(new FileWriter(target, Charset.forName("UTF-8")))) {
 			FormatAdapter fmt = this.format.getValue().create(
 					w, this.sessionMeta, session, new ExportConfig(false, true));
 			fmt.write();
 		} catch (Exception e) {
 			e.printStackTrace();
-			SystemToast warning = new SystemToast(new SystemToast.Type(), 
+			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.export.fail"), 
 					I18N.translateAsText("gui.export.fail.desc"));
-			MinecraftClient.getInstance().getToastManager().add(warning);
+			Minecraft.getInstance().getToastManager().addToast(warning);
 			return;
 		}
 		
 		if (this.openAfterExport.getValue()) {
-			Util.getOperatingSystem().open(target);
+			Util.getPlatform().openFile(target);
 		}
 		
-		this.close();
+		this.onClose();
 	}
 	
 	@Override
-	public void close() {
-		this.client.setScreen(this.parent);
+	public void onClose() {
+		this.minecraft.setScreen(this.parent);
 	}
 }

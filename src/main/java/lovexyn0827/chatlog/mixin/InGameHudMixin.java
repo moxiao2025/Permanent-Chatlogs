@@ -7,17 +7,17 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import lovexyn0827.chatlog.session.SessionRecorder;
-import net.minecraft.client.gui.hud.InGameHud;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.Gui;
+import net.minecraft.network.chat.Component;
 
-@Mixin(InGameHud.class)
+@Mixin(Gui.class)
 public class InGameHudMixin {
 	@Inject(
 			method = "setOverlayMessage", 
 			at = @At("HEAD")
 	)
-	private void onOverlayMessage(Text message, boolean tinted, CallbackInfo ci) {
-		if (Options.saveOverlays) {
+	private void onOverlayMessage(Component message, boolean tinted, CallbackInfo ci) {
+		if (Options.saveOverlays && SessionRecorder.current() != null) {
 			SessionRecorder.current().addOverlayMessage(message, tinted, System.currentTimeMillis());
 		}
 	}
@@ -26,8 +26,8 @@ public class InGameHudMixin {
 			method = "setTitle", 
 			at = @At("HEAD")
 	)
-	private void onTitle(Text message, CallbackInfo ci) {
-		if (Options.saveTitles) {
+	private void onTitle(Component message, CallbackInfo ci) {
+		if (Options.saveTitles && SessionRecorder.current() != null) {
 			SessionRecorder.current().addTitle(message, System.currentTimeMillis());
 		}
 	}
@@ -36,8 +36,8 @@ public class InGameHudMixin {
 			method = "setSubtitle", 
 			at = @At("HEAD")
 	)
-	private void onSubtitle(Text message, CallbackInfo ci) {
-		if (Options.saveSubtitles) {
+	private void onSubtitle(Component message, CallbackInfo ci) {
+		if (Options.saveSubtitles && SessionRecorder.current() != null) {
 			SessionRecorder.current().addSubtitle(message, System.currentTimeMillis());
 		}
 	}

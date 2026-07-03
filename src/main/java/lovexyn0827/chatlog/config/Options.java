@@ -9,7 +9,7 @@ import java.util.Properties;
 
 import lovexyn0827.chatlog.PermanentChatLogMod;
 import lovexyn0827.chatlog.i18n.I18N;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public final class Options {
 	private static final File OPTION_FILE = new File("permanent-chatlogs.prop");
@@ -75,7 +75,7 @@ public final class Options {
 		save();
 	}
 	
-	public static Text getToolTip(String option) {
+	public static Component getToolTip(String option) {
 		return I18N.translateAsText("opt." + option + ".desc");
 	}
 	

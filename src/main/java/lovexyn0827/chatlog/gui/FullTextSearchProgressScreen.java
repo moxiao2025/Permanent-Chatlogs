@@ -7,12 +7,13 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 
+import com.mojang.datafixers.util.Pair;
+
 import lovexyn0827.chatlog.i18n.I18N;
 import lovexyn0827.chatlog.session.Session;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ConfirmScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.util.Pair;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.screens.ConfirmScreen;
+import net.minecraft.client.gui.screens.Screen;
 
 public class FullTextSearchProgressScreen extends Screen {
 	private final Screen parent;
@@ -33,8 +34,8 @@ public class FullTextSearchProgressScreen extends Screen {
 	}
 
 	@Override
-	public void close() {
-		this.client.setScreen(this.parent);
+	public void onClose() {
+		this.minecraft.setScreen(this.parent);
 	}
 
 	@Override
@@ -44,13 +45,13 @@ public class FullTextSearchProgressScreen extends Screen {
 	}
 	
 	@Override
-	public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-		super.render(ctx, mouseX, mouseY, delta);
-		ctx.drawCenteredTextWithShadow(this.textRenderer, I18N.translate("gui.filter.progress"), 
+	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float delta) {
+		super.extractRenderState(ctx, mouseX, mouseY, delta);
+		ctx.centeredText(this.font, I18N.translate("gui.filter.progress"), 
 				this.width / 2, (int) (this.height * 0.4), 0xFFFFFFFF);
 		this.drawProgressBar(ctx, (int) (this.height * 0.4) + 15, this.doneCount.get(), this.total);
 		if (this.doneCount.get() == this.total) {
-			this.client.setScreen(new ConfirmScreen(this::showSearchResults, 
+			this.minecraft.setScreen(new ConfirmScreen(this::showSearchResults, 
 					I18N.translateAsText("gui.filter.showmode"), 
 					I18N.translateAsText("gui.filter.showmode.desc"),  
 					I18N.translateAsText("gui.filter.showmode.message"), 
@@ -58,21 +59,21 @@ public class FullTextSearchProgressScreen extends Screen {
 		}
 	}
 	
-	private void drawProgressBar(DrawContext ctx, int y, int done, int total) {
+	private void drawProgressBar(GuiGraphicsExtractor ctx, int y, int done, int total) {
 		int barWidth = (int) (this.width * 0.6);
 		int doneWidth = barWidth * done / total;
 		int x = (this.width - barWidth) / 2;
-		ctx.fill(x - 1, y - 1, x + barWidth + 1, y + 17, total, 0xFF7F7F7F);
-		ctx.fill(x, y, x + doneWidth, y + 16, total, 0xFF00FF00);
-		ctx.drawCenteredTextWithShadow(this.textRenderer, String.format("%d / %d", done, total), 
+		ctx.fill(x - 1, y - 1, x + barWidth + 1, y + 17, 0xFF7F7F7F);
+		ctx.fill(x, y, x + doneWidth, y + 16, 0xFF00FF00);
+		ctx.centeredText(this.font, String.format("%d / %d", done, total), 
 				this.width / 2, y + 20, 0xFFFFFFFF);
 	}
 	
 	private void showSearchResults(boolean showMessage) {
 		if (showMessage) {
-			this.client.setScreen(new FullTextSearchResultScreen(this.parent,this.results));
+			this.minecraft.setScreen(new FullTextSearchResultScreen(this.parent,this.results));
 		} else {
-			this.client.setScreen(new SessionListScreen(this.parent,this.results::containsKey));
+			this.minecraft.setScreen(new SessionListScreen(this.parent,this.results::containsKey));
 		}
 	}
 	

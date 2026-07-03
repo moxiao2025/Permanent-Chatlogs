@@ -1,13 +1,12 @@
 {
 	"required": true,
 	"package": "lovexyn0827.chatlog.mixin",
-	"compatibilityLevel": "JAVA_17",
+	"compatibilityLevel": "JAVA_21",
 	"mixins": [
 		"TitleScreenMixin", 
 		"ChatHudMixin", 
 		"MinecraftClientMixin", 
-		"ConnectScreenMixin", 
-		"ClientPlayNetworkHandlerMixin", 
+		"JoinMultiplayerScreenMixin", 
 		"ChatScreenMixin", 
 		"LanguageManagerMixin", 
 		"ChaHudMixin_overrideMaxMessages", 
@@ -16,7 +15,8 @@
 		"KeyboardMixin", 
 		"TextFieldWidgetAccessor", 
 		"GameMenuScreenMixin", 
-		"InGameHudMixin"
+		"InGameHudMixin",
+		"ClientPlayNetworkHandlerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

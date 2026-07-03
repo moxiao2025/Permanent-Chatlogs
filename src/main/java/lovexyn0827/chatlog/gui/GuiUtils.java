@@ -3,21 +3,21 @@ package lovexyn0827.chatlog.gui;
 import lovexyn0827.chatlog.i18n.I18N;
 import lovexyn0827.chatlog.session.Session;
 import lovexyn0827.chatlog.session.SessionRecorder;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.toast.SystemToast;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.gui.screens.Screen;
 
 final class GuiUtils {
-	static boolean loadSession(MinecraftClient mc, Session.Summary summary, Screen parentScreen) {
+	static boolean loadSession(Minecraft mc, Session.Summary summary, Screen parentScreen) {
 		return GuiUtils.loadSession(mc, summary, parentScreen, -1);
 	}
 	
-	static boolean loadSession(MinecraftClient mc, Session.Summary summary, Screen parentScreen, int ordinalInSession) {
+	static boolean loadSession(Minecraft mc, Session.Summary summary, Screen parentScreen, int ordinalInSession) {
 		if (SessionRecorder.current() != null && SessionRecorder.current().getId() == summary.id) {
-			SystemToast warning = new SystemToast(new SystemToast.Type(), 
+			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.sload.failongoing"), 
 					I18N.translateAsText("gui.sload.failongoing.desc"));
-			MinecraftClient.getInstance().getToastManager().add(warning);
+			Minecraft.getInstance().getToastManager().addToast(warning);
 		}
 		
 		try {
@@ -29,10 +29,10 @@ final class GuiUtils {
 					screen.scrollTo(ordinalInSession);
 				}
 			} else {
-				SystemToast warning = new SystemToast(new SystemToast.Type(), 
+				SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 						I18N.translateAsText("gui.sload.failure"), 
 						I18N.translateAsText("gui.sload.failure.desc"));
-				MinecraftClient.getInstance().getToastManager().add(warning);
+				Minecraft.getInstance().getToastManager().addToast(warning);
 				return false;
 			}
 		} catch (Exception e) {

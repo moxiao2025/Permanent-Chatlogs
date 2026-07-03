@@ -8,8 +8,15 @@ import java.util.Properties;
 import java.util.Random;
 import java.util.Scanner;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.mojang.serialization.JsonOps;
+
 import lovexyn0827.chatlog.PermanentChatLogMod;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentSerialization;
 
 class SessionUtils {
 	private static final File NEXT_ID_STORAGE_OLD =FabricLoader.getInstance()
@@ -104,5 +111,36 @@ class SessionUtils {
 	
 	static File lockFileOf(File log) {
 		return new File(log.getAbsolutePath() + ".lock");
+	}
+	
+	private static final Gson GSON = new Gson();
+	
+	/**
+	 * Deserialize a Component from its JSON representation.
+	 * Replaces Component.Serializer.fromJson() which was removed in 26.1.
+	 */
+	static Component componentFromJson(String json) {
+		JsonElement element = GSON.fromJson(json, JsonElement.class);
+		return ComponentSerialization.CODEC.parse(JsonOps.INSTANCE, element).getOrThrow();
+	}
+	
+	/**
+	 * Serialize a Component to its JSON representation.
+	 * Replaces Component.Serializer.toJson() which was removed in 26.1.
+	 * Falls back to a plain text representation if registry access fails
+	 * (e.g. enchantment data on a non-render thread).
+	 */
+	static String componentToJson(Component component) {
+		try {
+			JsonElement element = ComponentSerialization.CODEC.encodeStart(JsonOps.INSTANCE, component).getOrThrow();
+			return GSON.toJson(element);
+		} catch (IllegalStateException e) {
+			// Fallback: registry not accessible (e.g. on autosave worker thread)
+			// Serialize as plain text to avoid losing the message entirely
+			Session.LOGGER.debug("Failed to fully serialize component, falling back to plain text: {}", e.getMessage());
+			JsonObject fallback = new JsonObject();
+			fallback.addProperty("text", component.getString());
+			return GSON.toJson(fallback);
+		}
 	}
 }

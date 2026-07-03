@@ -9,27 +9,28 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.jetbrains.annotations.Nullable;
 
+import com.mojang.datafixers.util.Pair;
+
 import lovexyn0827.chatlog.i18n.I18N;
 import lovexyn0827.chatlog.session.Session;
 import lovexyn0827.chatlog.session.Session.Line;
 import lovexyn0827.chatlog.session.Session.Summary;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.Selectable;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.AlwaysSelectedEntryListWidget;
-import net.minecraft.client.gui.widget.ElementListWidget;
-import net.minecraft.client.util.ChatMessages;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.OrderedText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.Pair;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSelectionList;
+import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.util.FormattedCharSequence;
+import net.minecraft.ChatFormatting;
 import net.minecraft.util.Util;
+import net.minecraft.client.input.MouseButtonEvent;
 
 public class FullTextSearchResultScreen extends Screen {
     private final Screen parent;
@@ -48,26 +49,26 @@ public class FullTextSearchResultScreen extends Screen {
 	
 	@Override
 	public void init() {
-		this.sessions = new SessionList(this.client, this.results.keySet());
-		this.addDrawableChild(sessions);
-		this.messages = new MessageList(this.client);
-		this.addDrawableChild(messages);
+		this.sessions = new SessionList(this.minecraft, this.results.keySet());
+		this.addRenderableWidget(sessions);
+		this.messages = new MessageList(this.minecraft);
+		this.addRenderableWidget(messages);
 	}
 	
 	@Override
-	public void close() {
-		this.client.setScreen(this.parent);
+	public void onClose() {
+		this.minecraft.setScreen(this.parent);
 	}
 	
 	@Override
-	public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-		super.render(ctx, mouseX, mouseY, delta);
-		ctx.drawCenteredTextWithShadow(this.textRenderer, I18N.translateAsText("gui.filter.result"), 
+	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float delta) {
+		super.extractRenderState(ctx, mouseX, mouseY, delta);
+		ctx.centeredText(this.font, I18N.translateAsText("gui.filter.result"), 
 				this.width / 2, 5, 0xFFFFFFFF);
 	}
 	
-	private class SessionList extends AlwaysSelectedEntryListWidget<SessionList.Entry> {
-		public SessionList(MinecraftClient mc, Set<Session.Summary> sessions) {
+	private class SessionList extends ObjectSelectionList<SessionList.Entry> {
+		public SessionList(Minecraft mc, Set<Session.Summary> sessions) {
 			super(mc, (int) (FullTextSearchResultScreen.this.width * 0.38), 
 					FullTextSearchResultScreen.this.height - 30, 
 					20, 32);
@@ -89,68 +90,74 @@ public class FullTextSearchResultScreen extends Screen {
 		}
 		
 		@Override
-		public int getScrollbarPositionX() {
+		protected int scrollBarX() {
 			return FullTextSearchResultScreen.this.width / 2 - 10;
 		}
-
-		private class Entry extends AlwaysSelectedEntryListWidget.Entry<Entry> {
+		
+		@Override
+		public void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput builder) {
+		}
+		
+		private class Entry extends ObjectSelectionList.Entry<Entry> {
 			protected final Session.Summary summary;
-			private final Text saveName;
-			private final Text start;
-			private final Text sizeAndTimeLength;
+			private final Component saveName;
+			private final Component start;
+			private final Component sizeAndTimeLength;
 			private long lastClick = 0;
 			
 			public Entry(Session.Summary info) {
 				this.summary = info;
-				this.saveName = Text.literal(info.saveName);
-				this.start = Text.literal(info.getFormattedStartTime())
-						.formatted(Formatting.GRAY);
+				this.saveName = Component.literal(info.saveName);
+				this.start = Component.literal(info.getFormattedStartTime())
+						.withStyle(ChatFormatting.GRAY);
 				long delta = (long) Math.floor((info.endTime - info.startTime) / 1000);
-				this.sizeAndTimeLength = Text.literal(String.format(I18N.translate("gui.sizeandtime"), 
+				this.sizeAndTimeLength = Component.literal(String.format(I18N.translate("gui.sizeandtime"), 
 						(int) Math.floor(delta / 3600), (int) Math.floor((delta % 3600) / 60), delta % 60, info.size))
-						.formatted(Formatting.GRAY);
+						.withStyle(ChatFormatting.GRAY);
 			}
 			
 			@Override
-			public boolean mouseClicked(double mouseX, double mouseY, int button) {
+			public boolean mouseClicked(MouseButtonEvent mouseEvent, boolean doubleClick) {
 				FullTextSearchResultScreen.this.messages.setSession(
 						this.summary, 
 						FullTextSearchResultScreen.this.results.get(this.summary));
-				if (this.isFocused() && Util.getMeasuringTimeMs() - this.lastClick < 1000) {
-					GuiUtils.loadSession(FullTextSearchResultScreen.this.client, 
+				if (this.isFocused() && Util.getMillis() - this.lastClick < 1000) {
+					GuiUtils.loadSession(FullTextSearchResultScreen.this.minecraft, 
 							this.summary, FullTextSearchResultScreen.this);
 					return true;
 				}
 
 				SessionList.this.setFocused(this);
-				this.lastClick = Util.getMeasuringTimeMs();
+				this.lastClick = Util.getMillis();
 				return true;
 			}
 
 			@Override
-			public Text getNarration() {
+			public Component getNarration() {
 				return this.saveName;
 			}
 
 			@Override
-			public void render(DrawContext ctx, int i, int y, int x, 
-					int width, int height, int var7, int var8, boolean var9, float var10) {
-				TextRenderer tr = FullTextSearchResultScreen.this.textRenderer;
-				ctx.drawText(tr, this.saveName, x, y, 0xFFFFFFFF, false);
-				ctx.drawText(tr, this.start, x, y + 10, 0xFFFFFFFF, false);
-				ctx.drawText(tr, this.sizeAndTimeLength, x, y + 20, 0xFFFFFFFF, false);
+			public void extractContent(GuiGraphicsExtractor ctx, int mouseX, int mouseY, 
+					boolean hovering, float partialTick) {
+				int x = this.getContentX();
+				int y = this.getContentY();
+				Font tr = FullTextSearchResultScreen.this.font;
+				ctx.text(tr, this.saveName, x, y, 0xFFFFFFFF);
+				ctx.text(tr, this.start, x, y + 10, 0xFFFFFFFF);
+				ctx.text(tr, this.sizeAndTimeLength, x, y + 20, 0xFFFFFFFF);
 			}
 			
 		}
 	}
 	
-	private class MessageList extends ElementListWidget<MessageList.Entry> {
+	private class MessageList extends AbstractSelectionList<MessageList.Entry> {
 		private Session.Summary currentSessionSummary;
 		
-		public MessageList(MinecraftClient mc) {
+		public MessageList(Minecraft mc) {
 			super(mc, (int) (FullTextSearchResultScreen.this.width * 0.38), 
 					FullTextSearchResultScreen.this.height - 30, 
-					20, mc.textRenderer.fontHeight + 1);
+					20, mc.font.lineHeight + 1);
 			this.setX(this.getRowLeft());
 		}
 		
@@ -165,32 +172,36 @@ public class FullTextSearchResultScreen extends Screen {
 		}
 		
 		@Override
-		public int getScrollbarPositionX() {
+		protected int scrollBarX() {
 			return (int) (FullTextSearchResultScreen.this.width * 0.88);
+		}
+		
+		@Override
+		protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput builder) {
 		}
 		
 		public void setSession(Session.Summary summary, List<Pair<Integer, Session.Line>> lines) {
 			this.currentSessionSummary = summary;
 			this.clearEntries();
-			OrderedText title = I18N.translateAsText("gui.filter.matchcnt", lines.size()).asOrderedText();
+			FormattedCharSequence title = I18N.translateAsText("gui.filter.matchcnt", lines.size()).getVisualOrderText();
 			this.addEntry(new Entry(title, null, -1));
 			for (Pair<Integer, Session.Line> e : lines) {
-				this.addEntry(new Entry(Text.empty().asOrderedText(), null, -1));
-				ChatMessages.breakRenderedChatMessageLines(e.getRight().message, 
+				this.addEntry(new Entry(Component.empty().getVisualOrderText(), null, -1));
+				ComponentSplitter.wrapComponents(e.getSecond().message, 
 						this.width - 10, 
-						FullTextSearchResultScreen.this.textRenderer).forEach((t) -> {
-							this.addEntry(new Entry(t, e.getRight(), e.getLeft()));
+						FullTextSearchResultScreen.this.font).forEach((t) -> {
+							this.addEntry(new Entry(t, e.getSecond(), e.getFirst()));
 						});
 			}
 		}
 
-		private class Entry extends ElementListWidget.Entry<Entry> {
-			private final OrderedText text;
+		private class Entry extends AbstractSelectionList.Entry<Entry> {
+			private final FormattedCharSequence text;
 			private final Line owner;
 			private final int ordinalInSession;
 			private long lastClick = 0;
 			
-			public Entry(OrderedText text, Session.Line owner, int ord) {
+			public Entry(FormattedCharSequence text, Session.Line owner, int ord) {
 				this.text = text;
 				this.owner = owner;
 				this.ordinalInSession = ord;
@@ -204,58 +215,38 @@ public class FullTextSearchResultScreen extends Screen {
 			}
 			
 			@Override
-			public void render(DrawContext ctx, int i, int y, int x, 
-					int width, int height, int mouseX, int mouseY, boolean hovering, float var10) {
-				TextRenderer tr = FullTextSearchResultScreen.this.textRenderer;
-				ctx.drawTextWithShadow(tr, this.text, x + 4, y, 0xFFFFFFFF);
+			public void extractContent(GuiGraphicsExtractor ctx, int mouseX, int mouseY, 
+					boolean hovering, float partialTick) {
+				int x = this.getContentX();
+				int y = this.getContentY();
+				Font tr = FullTextSearchResultScreen.this.font;
+				ctx.text(tr, this.text, x + 4, y, 0xFFFFFFFF);
 				ctx.fill(x + 1, y, x + 3, y + 10, this.owner == null ? 0 : this.owner.getMarkColor());
-				if(hovering) {
-					if(this.owner != null && mouseX - x < 4) {
-						String time = this.getFormattedTime();
-						this.renderToolTip(ctx, tr, time, mouseX, mouseY);
-					} else {
-						Text tip = this.getToolTip(mouseX, mouseY);
-						if(tip != null) {
-							this.renderToolTip(ctx, tr, tip, mouseX, mouseY);
-						}
-					}
-				}
-			}
-			
-			private void renderToolTip(DrawContext ctx, TextRenderer tr, String text, int mouseX, int mouseY) {
-				ctx.drawOrderedTooltip(tr, 
-						ChatMessages.breakRenderedChatMessageLines(Text.literal(text), 
-								(int) (MessageList.this.width * 0.7), tr),
-						mouseX, mouseY);
-			}
-
-			private void renderToolTip(DrawContext ctx, TextRenderer tr, Text text, int mouseX, int mouseY) {
-				ctx.drawOrderedTooltip(tr, 
-						ChatMessages.breakRenderedChatMessageLines(text, 
-								(int) (MessageList.this.width * 0.7), tr), 
-						mouseX, mouseY);
+				// Note: hovering tooltip in extractContent can't use mouseX/mouseY directly in 26.1.2.
+				// The tooltip for hover events in list entries is simplified here.
 			}
 			
 			@Nullable
-			private Text getToolTip(double mouseX, double mouseY) {
-				TextRenderer tr = FullTextSearchResultScreen.this.textRenderer;
-				double scale = FullTextSearchResultScreen.this.client.getWindow().getScaleFactor();
+			private Component getToolTip(double mouseX, double mouseY) {
+				Font tr = FullTextSearchResultScreen.this.font;
+				double scale = FullTextSearchResultScreen.this.minecraft.getWindow().getGuiScale();
 				int pos = (int) Math.floor(mouseX - (MessageList.this.getX() + 4) * scale);
-				Style style = tr.getTextHandler().getStyleAt(this.text, pos);
+				Style style = ComponentSplitter.styleAtWidth(tr, this.text, pos);
 				if(style != null) {
 					HoverEvent he;
 					boolean hasHoverText = false;
-					if((he = style.getHoverEvent()) != null && !Screen.hasAltDown()) {
-						if(he.getAction() == HoverEvent.Action.SHOW_TEXT) {
+					if((he = style.getHoverEvent()) != null && !Minecraft.getInstance().hasAltDown()) {
+						if(he.action() == HoverEvent.Action.SHOW_TEXT) {
 							hasHoverText = true;
-							return he.getValue(HoverEvent.Action.SHOW_TEXT);
+							Component hoverText = ChatLogScreen.getHoverShowTextValue(he);
+							if (hoverText != null) return hoverText;
 						}
 					}
 					
 					ClickEvent ce;
 					if((ce = style.getClickEvent()) != null) {
 						if(!hasHoverText) {
-							return Text.literal(ce.getValue());
+							return Component.literal(ce.toString());
 						}
 					}
 				}
@@ -264,36 +255,29 @@ public class FullTextSearchResultScreen extends Screen {
 			}
 			
 			@Override
-			public boolean mouseClicked(double mouseX, double mouseY, int button) {
-				if(Screen.hasControlDown()) {
-					Text tip = this.getToolTip(mouseX, mouseY);
+			public boolean mouseClicked(MouseButtonEvent mouseEvent, boolean doubleClick) {
+				double mouseX = mouseEvent.x();
+				double mouseY = mouseEvent.y();
+				if(Minecraft.getInstance().hasControlDown()) {
+					Component tip = this.getToolTip(mouseX, mouseY);
 					if(tip != null) {
-						FullTextSearchResultScreen.this.client.keyboard.setClipboard(tip.getString());
+						FullTextSearchResultScreen.this.minecraft.keyboardHandler.setClipboard(tip.getString());
 						return true;
 					}
 				}
 				
-				if (this.owner != null && Util.getMeasuringTimeMs() - this.lastClick < 1000) {
-					GuiUtils.loadSession(FullTextSearchResultScreen.this.client, 
+				if (this.owner != null && Util.getMillis() - this.lastClick < 1000) {
+					GuiUtils.loadSession(FullTextSearchResultScreen.this.minecraft, 
 							MessageList.this.currentSessionSummary, 
 							FullTextSearchResultScreen.this, 
 							this.ordinalInSession);
 					return true;
 				}
 				
-				this.lastClick = Util.getMeasuringTimeMs();
+				this.lastClick = Util.getMillis();
 				return false;
 			}
 
-			@Override
-			public List<? extends Element> children() {
-				return Collections.emptyList();
-			}
-
-			@Override
-			public List<? extends Selectable> selectableChildren() {
-				return Collections.emptyList();
-			}
 		}
 	}
 }

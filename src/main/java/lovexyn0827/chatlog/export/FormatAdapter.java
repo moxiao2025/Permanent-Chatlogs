@@ -10,7 +10,7 @@ import com.google.common.collect.ImmutableList;
 import lovexyn0827.chatlog.i18n.I18N;
 import lovexyn0827.chatlog.session.Session;
 import lovexyn0827.chatlog.session.Session.Summary;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 public abstract class FormatAdapter {
 	protected static final Logger LOGGER = LogManager.getLogger();
@@ -58,8 +58,8 @@ public abstract class FormatAdapter {
 			return I18N.translate("gui.export." + this.getId());
 		}
 		
-		public final Text getDisplayedText() {
-			return Text.literal(String.format("%s (.%s)", this.getDescription(), this.getId()));
+		public final Component getDisplayedText() {
+			return Component.literal(String.format("%s (.%s)", this.getDescription(), this.getId()));
 		}
 	}
 }

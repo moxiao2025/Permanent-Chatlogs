@@ -9,17 +9,17 @@ import lovexyn0827.chatlog.config.Options;
 import lovexyn0827.chatlog.i18n.I18N;
 import lovexyn0827.chatlog.session.Session;
 import lovexyn0827.chatlog.session.Session.Summary;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.ConfirmScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.AlwaysSelectedEntryListWidget;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.screen.ScreenTexts;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
-import net.minecraft.util.math.MathHelper;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.ObjectSelectionList;
+import net.minecraft.client.gui.screens.ConfirmScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.CommonComponents;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 public final class SessionListScreen extends Screen {
     private final Screen parent;
@@ -44,97 +44,96 @@ public final class SessionListScreen extends Screen {
 	
 	@Override
 	protected void init() {
-		this.displayedSessions = new SessionList(this.client);
-		this.addDrawableChild(this.displayedSessions);
+		this.displayedSessions = new SessionList(this.minecraft);
+		this.addRenderableWidget(this.displayedSessions);
 		int openBtnYPos = this.height - (this.enablePaging ? 46 : 23);
-		ButtonWidget openBtn = ButtonWidget.builder(I18N.translateAsText("gui.open"), 
+		Button openBtn = Button.builder(I18N.translateAsText("gui.open"), 
 				(btn) -> {
 					SessionList.SessionEntry entry = this.displayedSessions.getFocused();
 					if (entry != null ) {
-						GuiUtils.loadSession(this.client, entry.summary, this);
+						GuiUtils.loadSession(this.minecraft, entry.summary, this);
 					}
 				})
-				.dimensions(this.width / 2 - 128, openBtnYPos, 80, 20)
+				.bounds(this.width / 2 - 128, openBtnYPos, 80, 20)
 				.build();
-		ButtonWidget exportBtn = ButtonWidget.builder(I18N.translateAsText("gui.export"), 
+		Button exportBtn = Button.builder(I18N.translateAsText("gui.export"), 
 				(btn) -> {
 					SessionList.SessionEntry entry = this.displayedSessions.getFocused();
 					if (entry != null ) {
-						this.client.setScreen(new ExportSessionScreen(client.currentScreen, entry.summary));
+						this.minecraft.setScreen(new ExportSessionScreen(minecraft.screen, entry.summary));
 					}
 				})
-				.dimensions(this.width / 2 - 40, openBtnYPos, 80, 20)
+				.bounds(this.width / 2 - 40, openBtnYPos, 80, 20)
 				.build();
-		ButtonWidget deleteBtn = ButtonWidget.builder(I18N.translateAsText("gui.del"), 
+		Button deleteBtn = Button.builder(I18N.translateAsText("gui.del"), 
 				(btn) -> {
 					SessionList.SessionEntry entry = this.displayedSessions.getFocused();
 					if (entry != null ) {
-						this.client.setScreen(new ConfirmScreen((confirmed) -> {
+						this.minecraft.setScreen(new ConfirmScreen((confirmed) -> {
 							if (confirmed) {
 								IntLinkedOpenHashSet ids = new IntLinkedOpenHashSet();
 								ids.add(entry.summary.id);
 								Session.delete(ids);
 							}
 							
-							this.client.setScreen(this);
+							this.minecraft.setScreen(this);
 						}, I18N.translateAsText("gui.del.title"), I18N.translateAsText("gui.del.desc")));
 					}
 				})
-				.dimensions(this.width / 2 + 48, openBtnYPos, 80, 20)
+				.bounds(this.width / 2 + 48, openBtnYPos, 80, 20)
 				.build();
-		ButtonWidget filterBtn = ButtonWidget.builder(I18N.translateAsText("gui.filter"), 
-						(btn) -> this.client.setScreen(new FilterSessionScreen(client.currentScreen)))
-				.dimensions(this.width / 2 - 128, 20, 80, 20)
+		Button filterBtn = Button.builder(I18N.translateAsText("gui.filter"), 
+						(btn) -> this.minecraft.setScreen(new FilterSessionScreen(minecraft.screen)))
+				.bounds(this.width / 2 - 128, 20, 80, 20)
 				.build();
-		ButtonWidget settingBtn = ButtonWidget.builder(I18N.translateAsText("gui.settings"), 
-						(btn) -> this.client.setScreen(new SettingScreen(client.currentScreen)))
-				.dimensions(this.width / 2 - 40, 20, 80, 20)
+		Button settingBtn = Button.builder(I18N.translateAsText("gui.settings"), 
+						(btn) -> this.minecraft.setScreen(new SettingScreen(minecraft.screen)))
+				.bounds(this.width / 2 - 40, 20, 80, 20)
 				.build();
-		ButtonWidget exitBtn = ButtonWidget.builder(ScreenTexts.BACK, 
-						(btn) -> this.client.setScreen(this.parent))
-				.dimensions(this.width / 2 + 48, 20, 80, 20)
+		Button exitBtn = Button.builder(CommonComponents.GUI_BACK, 
+						(btn) -> this.minecraft.setScreen(this.parent))
+				.bounds(this.width / 2 + 48, 20, 80, 20)
 				.build();
 		if (this.enablePaging) {
-			ButtonWidget prevBtn = ButtonWidget.builder(I18N.translateAsText("gui.prev"), 
+			Button prevBtn = Button.builder(I18N.translateAsText("gui.prev"), 
 							(btn) -> this.displayedSessions.turnPage(false))
-					.dimensions(this.width / 2 - 128, this.height - 23, 124, 20)
+					.bounds(this.width / 2 - 128, this.height - 23, 124, 20)
 					.build();
-			ButtonWidget nextBtn = ButtonWidget.builder(I18N.translateAsText("gui.next"), 
+			Button nextBtn = Button.builder(I18N.translateAsText("gui.next"), 
 							(btn) -> this.displayedSessions.turnPage(true))
-					.dimensions(this.width / 2 + 4, this.height - 23, 124, 20)
+					.bounds(this.width / 2 + 4, this.height - 23, 124, 20)
 					.build();
-			this.addDrawableChild(prevBtn);
-			this.addDrawableChild(nextBtn);
+			this.addRenderableWidget(prevBtn);
+			this.addRenderableWidget(nextBtn);
 		}
 		
-		this.addDrawableChild(openBtn);
-		this.addDrawableChild(exportBtn);
-		this.addDrawableChild(deleteBtn);
-		this.addDrawableChild(filterBtn);
-		this.addDrawableChild(settingBtn);
-		this.addDrawableChild(exitBtn);
+		this.addRenderableWidget(openBtn);
+		this.addRenderableWidget(exportBtn);
+		this.addRenderableWidget(deleteBtn);
+		this.addRenderableWidget(filterBtn);
+		this.addRenderableWidget(settingBtn);
+		this.addRenderableWidget(exitBtn);
 	}
 	
 	@Override
-	public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-		this.renderBackground(ctx, mouseY, mouseY, delta);
-        ctx.drawCenteredTextWithShadow(
-                this.client.textRenderer,
+	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float delta) {
+		this.extractBackground(ctx, mouseY, mouseY, delta);
+        ctx.centeredText(
+                this.minecraft.font,
                 this.title,
                 this.width / 2,
                 8,
                 0xFFFFFF
         );
-		this.displayedSessions.render(ctx, mouseX, mouseY, delta);
-		super.render(ctx, mouseX, mouseY, delta);
+		super.extractRenderState(ctx, mouseX, mouseY, delta);
 	}
 
     @Override
-    public void close() {
-        this.client.setScreen(this.parent);
+    public void onClose() {
+        this.minecraft.setScreen(this.parent);
     }
 	
-	private final class SessionList extends AlwaysSelectedEntryListWidget<SessionList.SessionEntry> {
+	private final class SessionList extends ObjectSelectionList<SessionList.SessionEntry> {
 		private final List<Session.Summary> allSessions = Session.getSessionSummaries()
 				.stream()
 				.filter(SessionListScreen.this.filterer)
@@ -143,7 +142,7 @@ public final class SessionListScreen extends Screen {
 		private List<Session.Summary> visibleSessions;
 		private int currentPage = 0;
 		
-		public SessionList(MinecraftClient mc) {
+		public SessionList(Minecraft mc) {
 			super(mc, SessionListScreen.this.width, 
 					SessionListScreen.this.height - (SessionListScreen.this.enablePaging ? 104 : 81), 50, 32);
 			this.toPage(0);
@@ -171,42 +170,48 @@ public final class SessionListScreen extends Screen {
 		public void turnPage(boolean next) {
 			int target = this.currentPage + (next ? 1 : -1);
 			int totalPages = (int) Math.ceil(((double) this.allSessions.size()) / Options.sessionsPerPage);
-			this.toPage(MathHelper.clamp(target, 0, totalPages - 1));
+			this.toPage(Mth.clamp(target, 0, totalPages - 1));
 		}
 		
-		private final class SessionEntry extends AlwaysSelectedEntryListWidget.Entry<SessionEntry> {
+		@Override
+		public void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput builder) {
+		}
+		
+		private final class SessionEntry extends ObjectSelectionList.Entry<SessionEntry> {
 			private final Session.Summary summary;
-			private final Text saveName;
-			private final Text start;
-			private final Text sizeAndTimeLength;
+			private final Component saveName;
+			private final Component start;
+			private final Component sizeAndTimeLength;
 			
 			public SessionEntry(Session.Summary info) {
 				this.summary = info;
-				this.saveName = Text.literal(info.saveName);
-				this.start = Text.literal(info.getFormattedStartTime())
-						.formatted(Formatting.GRAY);
+				this.saveName = Component.literal(info.saveName);
+				this.start = Component.literal(info.getFormattedStartTime())
+						.withStyle(ChatFormatting.GRAY);
 				long delta = (long) Math.floor((info.endTime - info.startTime) / 1000);
-				this.sizeAndTimeLength = Text.literal(String.format(I18N.translate("gui.sizeandtime"), 
+				this.sizeAndTimeLength = Component.literal(String.format(I18N.translate("gui.sizeandtime"), 
 						(int) Math.floor(delta / 3600), (int) Math.floor((delta % 3600) / 60), delta % 60, info.size))
-						.formatted(Formatting.GRAY);
+						.withStyle(ChatFormatting.GRAY);
 			}
 
 			@Override
-			public Text getNarration() {
+			public Component getNarration() {
 				return this.saveName;
 			}
 			
 			@Override
-			public void render(DrawContext ctx, int i, int y, int x, 
-					int width, int height, int var7, int var8, boolean var9, float var10) {
-				TextRenderer tr = SessionListScreen.this.client.textRenderer;
-				ctx.drawText(tr, this.saveName, x, y, 0xFFFFFFFF, false);
-				ctx.drawText(tr, this.start, x, y + 10, 0xFFFFFFFF, false);
-				ctx.drawText(tr, this.sizeAndTimeLength, x, y + 20, 0xFFFFFFFF, false);
+			public void extractContent(GuiGraphicsExtractor ctx, int mouseX, int mouseY, 
+					boolean hovering, float partialTick) {
+				int x = this.getContentX();
+				int y = this.getContentY();
+				Font tr = SessionListScreen.this.minecraft.font;
+				ctx.text(tr, this.saveName, x, y, 0xFFFFFFFF);
+				ctx.text(tr, this.start, x, y + 10, 0xFFFFFFFF);
+				ctx.text(tr, this.sizeAndTimeLength, x, y + 20, 0xFFFFFFFF);
 			}
 			
 			@Override
-			public boolean mouseClicked(double mouseX, double mouseY, int button) {
+			public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent mouseEvent, boolean doubleClick) {
 				SessionList.this.setFocused(this);
 				return true;
 			}

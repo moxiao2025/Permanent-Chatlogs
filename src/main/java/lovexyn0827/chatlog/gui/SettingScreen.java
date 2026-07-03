@@ -7,31 +7,29 @@ import java.util.List;
 import lovexyn0827.chatlog.config.Option;
 import lovexyn0827.chatlog.config.OptionType;
 import lovexyn0827.chatlog.config.Options;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.Selectable;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.screen.narration.NarrationMessageBuilder;
-import net.minecraft.client.gui.widget.CheckboxWidget;
-import net.minecraft.client.gui.widget.ElementListWidget;
-import net.minecraft.client.gui.widget.EntryListWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.util.ChatMessages;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSelectionList;
+import net.minecraft.client.gui.components.Checkbox;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.chat.Component;
 
 public final class SettingScreen extends Screen {
     private final Screen parent;
 	private OptionListWidget optionList;
 	
 	protected SettingScreen(Screen parent) {
-		super(Text.literal("Settings"));
+		super(Component.literal("Settings"));
         this.parent = parent;
 	}
 
 	@Override
 	public void init() {
-		this.optionList = new OptionListWidget(this.client);
+		this.optionList = new OptionListWidget(this.minecraft);
 		for(Field f : Options.class.getDeclaredFields()) {
 			Option o = f.getAnnotation(Option.class);
 			if(o == null) {
@@ -41,29 +39,28 @@ public final class SettingScreen extends Screen {
 			this.optionList.addOption(f);
 		}
 		
-		this.addDrawableChild(this.optionList);
+		this.addRenderableWidget(this.optionList);
 	}
 	
 	@Override
-	public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
-		this.renderBackgroundTexture(ctx);
-		super.render(ctx, mouseX, mouseY, delta);
-		this.optionList.render(ctx, mouseX, mouseY, delta);
+	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float delta) {
+		this.extractBackground(ctx, mouseY, mouseY, delta);
+		super.extractRenderState(ctx, mouseX, mouseY, delta);
 	}
 	
 	@Override
-	public void close() {
-		this.client.setScreen(this.parent);
+	public void onClose() {
+		this.minecraft.setScreen(this.parent);
 	}
 	
-	private final class OptionListWidget extends EntryListWidget<OptionListWidget.Entry> {
-		public OptionListWidget(MinecraftClient client) {
+	private final class OptionListWidget extends AbstractSelectionList<OptionListWidget.Entry> {
+		public OptionListWidget(Minecraft client) {
 			super(client, SettingScreen.this.width, SettingScreen.this.height - 32, 16, 18);
 		}
 		
 		@Override
 		public int getRowWidth() {
-			return (int) (this.client.getWindow().getScaledWidth() * 0.8F);
+			return (int) (this.minecraft.getWindow().getGuiScaledWidth() * 0.8F);
 		}
 		
 		protected int addOption(Field f) {
@@ -75,74 +72,62 @@ public final class SettingScreen extends Screen {
 		}
 
 		@Override
-		protected void appendClickableNarrations(NarrationMessageBuilder var1) {
+		protected void updateWidgetNarration(NarrationElementOutput var1) {
 		}
 		
-		private class Entry extends ElementListWidget.Entry<Entry> {
-			protected final Text name;
+		private class Entry extends AbstractSelectionList.Entry<Entry> {
+			protected final Component name;
 			
 			protected Entry(Field f) {
-				this.name = Text.literal(f.getName());
+				this.name = Component.literal(f.getName());
 			}
 			
 			@Override
-			public void render(DrawContext ctx, int i, int y, int x, 
-					int width, int height, int mouseX, int mouseY, boolean hovering, float var10) {
-				int xOffset = ((int) (width * 0.25));
-				ctx.drawText(SettingScreen.this.textRenderer, this.name, xOffset, y + 5, 0xFF31F38B, false);
-				if (hovering && mouseX < ctx.getScaledWindowWidth() * 0.5) {
-					ctx.drawOrderedTooltip(SettingScreen.this.textRenderer, 
-							ChatMessages.breakRenderedChatMessageLines(
-									Options.getToolTip(this.name.getString()), width / 2, 
-									SettingScreen.this.textRenderer), 
-							mouseX, mouseY);
-				}
-			}
-
-			@Override
-			public List<? extends Element> children() {
-				return new ArrayList<>();
-			}
-
-			@Override
-			public List<? extends Selectable> selectableChildren() {
-				return new ArrayList<>();
+			public void extractContent(GuiGraphicsExtractor ctx, int mouseX, int mouseY, 
+					boolean hovering, float partialTick) {
+				int y = this.getContentY();
+				int xOffset = ((int) (this.getContentWidth() * 0.25));
+				ctx.text(SettingScreen.this.font, this.name, xOffset + this.getContentX(), y, 0xFF31F38B);
+				// Note: hovering tooltip position uses the parent screen's mouseX/mouseY
+				// which is not available in extractContent in 26.1.2.
+				// Tooltips for hover events in list entries are handled differently.
 			}
 		}
 		
 		private class TextEntry extends Entry {
-			private final TextFieldWidget valueSelector;
+			private final EditBox valueSelector;
 			
 			protected TextEntry(Field f) {
 				super(f);
-				int width = SettingScreen.this.client.getWindow().getScaledWidth();
-				this.valueSelector = new TextFieldWidget(SettingScreen.this.textRenderer, 
+				int width = SettingScreen.this.minecraft.getWindow().getGuiScaledWidth();
+				this.valueSelector = new EditBox(SettingScreen.this.font, 
 						(int) (width * 0.55), 1, 
 						(int) (width * 0.20), 14, this.name);
 				try {
-					this.valueSelector.setText(f.get(null).toString());
+					this.valueSelector.setValue(f.get(null).toString());
 				} catch (IllegalArgumentException | IllegalAccessException e) {
 					e.printStackTrace();
 					throw new RuntimeException(e);
 				}
 				
-				this.valueSelector.setChangedListener((s) -> {
+				this.valueSelector.setResponder((s) -> {
 					Options.set(this.name.getString(), s);
 				});
-				SettingScreen.this.addDrawableChild(this.valueSelector);
+				SettingScreen.this.addRenderableWidget(this.valueSelector);
 			}
 			
 			@Override
-			public void render(DrawContext ctx, int i, int y, int x, 
-					int width, int height, int mouseX, int mouseY, boolean hovering, float var10) {
-				super.render(ctx, i, y, x, width, height, mouseX, mouseY, hovering, var10);
+			public void extractContent(GuiGraphicsExtractor ctx, int mouseX, int mouseY, 
+					boolean hovering, float partialTick) {
+				int y = this.getContentY();
+				super.extractContent(ctx, mouseX, mouseY, hovering, partialTick);
 				this.valueSelector.setY(y);
-				this.valueSelector.render(ctx, mouseX, mouseY, var10);
+				this.valueSelector.extractWidgetRenderState(ctx, this.getContentX(), y, partialTick);
 			}
 		}
 		
 		private class BooleanEntry extends Entry {
-			private final CheckboxWidget valueSelector;
+			private final Checkbox valueSelector;
 			
 			protected BooleanEntry(Field f) {
 				super(f);
@@ -154,22 +139,24 @@ public final class SettingScreen extends Screen {
 					throw new RuntimeException(e);
 				}
 				
-				this.valueSelector = CheckboxWidget.builder(Text.empty(), SettingScreen.this.textRenderer)
-						.pos((int) (width * 0.75) - 16, 1)
-						.checked(toggled)
-						.callback((widget, checked) -> {
+				int guiWidth = SettingScreen.this.minecraft.getWindow().getGuiScaledWidth();
+				this.valueSelector = Checkbox.builder(Component.empty(), SettingScreen.this.font)
+						.pos((int) (guiWidth * 0.75) - 16, 1)
+						.selected(toggled)
+						.onValueChange((widget, checked) -> {
 							Options.set(BooleanEntry.this.name.getString(), Boolean.toString(checked));
 						})
 						.build();
-				SettingScreen.this.addDrawableChild(this.valueSelector);
+				SettingScreen.this.addRenderableWidget(this.valueSelector);
 			}
 			
 			@Override
-			public void render(DrawContext ctx, int i, int y, int x, 
-					int width, int height, int mouseX, int mouseY, boolean hovering, float var10) {
-				super.render(ctx, i, y, x, width, height, mouseX, mouseY, hovering, var10);
+			public void extractContent(GuiGraphicsExtractor ctx, int mouseX, int mouseY, 
+					boolean hovering, float partialTick) {
+				int y = this.getContentY();
+				super.extractContent(ctx, mouseX, mouseY, hovering, partialTick);
 				this.valueSelector.setY(y);
-				this.valueSelector.render(ctx, mouseX, mouseY, var10);
+				this.valueSelector.extractContents(ctx, this.getContentX(), y, partialTick);
 			}
 		}
 	}

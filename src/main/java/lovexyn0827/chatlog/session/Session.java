@@ -44,8 +44,8 @@ import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import lovexyn0827.chatlog.config.Options;
 import lovexyn0827.chatlog.i18n.I18N;
-import net.minecraft.client.gui.screen.world.WorldListWidget;
-import net.minecraft.text.Text;
+import net.minecraft.client.gui.screens.worldselection.WorldSelectionList;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 // TODO Merge & Auto merge
@@ -288,10 +288,10 @@ public final class Session {
 	
 	public static class Line {
 		public final UUID sender;
-		public final Text message;
+		public final Component message;
 		public final long time;
 		
-		protected Line(UUID sender, Text message, long time) {
+		protected Line(UUID sender, Component message, long time) {
 			this.sender = sender;
 			this.message = message;
 			this.time = time;
@@ -324,21 +324,21 @@ public final class Session {
 			}
 			
 			jr.endObject();
-			return new Proto(sender, Text.Serialization.fromJson(msgJson), time);
+			return new Proto(sender, SessionUtils.componentFromJson(msgJson), time);
 		}
 		
 		static Line parseFull(String json) {
 			@SuppressWarnings("deprecation")
 			JsonObject jo = new JsonParser().parse(json).getAsJsonObject();
 			return new Line(UUID.fromString(jo.get("sender").getAsString()), 
-					Text.Serialization.fromJson(jo.get("msgJson").getAsString()), 
+					SessionUtils.componentFromJson(jo.get("msgJson").getAsString()), 
 					jo.get("time").getAsLong());
 		}
 
 		JsonObject toJson() {
 			JsonObject line = new JsonObject();
 			line.addProperty("sender", this.sender.toString());
-			line.addProperty("msgJson", Text.Serialization.toJsonString(this.message));
+			line.addProperty("msgJson", SessionUtils.componentToJson(this.message));
 			line.addProperty("time", this.time);
 			return line;
 		}
@@ -349,10 +349,10 @@ public final class Session {
 		
 		protected final static class Proto {
 			public final int senderId;
-			public final Text message;
+			public final Component message;
 			public final long time;
 			
-			protected Proto(int senderId, Text message, long time) {
+			protected Proto(int senderId, Component message, long time) {
 				this.senderId = senderId;
 				this.message = message;
 				this.time = time;
@@ -367,7 +367,7 @@ public final class Session {
 	public static final class Event extends Line {
 		private final int markColor;
 		
-		public Event(Text title, long time, int markColor) {
+		public Event(Component title, long time, int markColor) {
 			super(Util.NIL_UUID, title, time);
 			this.markColor = markColor;
 		}
@@ -380,7 +380,7 @@ public final class Session {
 		static Line parseEvent(String json) {
 			@SuppressWarnings("deprecation")
 			JsonObject jo = new JsonParser().parse(json).getAsJsonObject();
-			return new Event(Text.Serialization.fromJson(jo.get("msgJson").getAsString()), 
+			return new Event(SessionUtils.componentFromJson(jo.get("msgJson").getAsString()), 
 					jo.get("time").getAsLong(), 
 					jo.get("color").getAsInt());
 		}
@@ -388,7 +388,7 @@ public final class Session {
 		@Override
 		JsonObject toJson() {
 			JsonObject json = new JsonObject();
-			json.addProperty("msgJson", Text.Serialization.toJsonString(this.message));
+			json.addProperty("msgJson", SessionUtils.componentToJson(this.message));
 			json.addProperty("time", this.time);
 			json.addProperty("color", this.markColor);
 			return json;
@@ -398,7 +398,7 @@ public final class Session {
 	public static final class Title extends Line {
 		private final Type type;
 
-		public Title(Text title, long time, Title.Type type) {
+		public Title(Component title, long time, Title.Type type) {
 			super(Util.NIL_UUID, title, time);
 			this.type = type;
 		}
@@ -411,7 +411,7 @@ public final class Session {
 		static Line parseTitle(String json) {
 			@SuppressWarnings("deprecation")
 			JsonObject jo = new JsonParser().parse(json).getAsJsonObject();
-			return new Title(Text.Serialization.fromJson(jo.get("msgJson").getAsString()), 
+			return new Title(SessionUtils.componentFromJson(jo.get("msgJson").getAsString()), 
 					jo.get("time").getAsLong(), 
 					Type.valueOf(jo.get("type").getAsString()));
 		}
@@ -419,7 +419,7 @@ public final class Session {
 		@Override
 		JsonObject toJson() {
 			JsonObject json = new JsonObject();
-			json.addProperty("msgJson", Text.Serialization.toJsonString(this.message));
+			json.addProperty("msgJson", SessionUtils.componentToJson(this.message));
 			json.addProperty("time", this.time);
 			json.addProperty("type", this.type.name());
 			return json;
@@ -579,7 +579,7 @@ public final class Session {
 		public final String getFormattedStartTime() {
 			return Instant.ofEpochMilli(this.startTime)
 					.atZone(this.timeZone.toZoneId())
-					.format(WorldListWidget.DATE_FORMAT);
+					.format(WorldSelectionList.DATE_FORMAT);
 		}
 	}
 	

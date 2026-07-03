@@ -25,12 +25,12 @@ import lovexyn0827.chatlog.session.Session.Line;
 import lovexyn0827.chatlog.session.Session.Summary;
 import net.fabricmc.loader.api.FabricLoader;
 import net.fabricmc.loader.api.metadata.ModMetadata;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
-import net.minecraft.text.Texts;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.ComponentUtils;
 
 @SuppressWarnings("deprecation")
 final class HtmlFormatAdapter extends FormatAdapter {
@@ -98,10 +98,10 @@ final class HtmlFormatAdapter extends FormatAdapter {
 		this.hoverEventsBySpan.forEach((span, e) -> {
 			js.append(span).append(": {");
 			js.append("action: \"");
-			js.append(e.getAction().asString());
+			js.append(e.action().getSerializedName());
 			js.append("\", ");
 			js.append("value: \"");
-			serializeHoverEventValue(js, e.getValue(e.getAction()));
+			serializeHoverEventValue(js, e);
 			js.append("\"},");
 		});
 		if (js.codePointAt(js.length() - 1) == ',') {
@@ -113,10 +113,10 @@ final class HtmlFormatAdapter extends FormatAdapter {
 		this.clickEventsBySpan.forEach((span, e) -> {
 			js.append(span).append(": {");
 			js.append("action: \"");
-			js.append(e.getAction().asString());
+			js.append(e.action().getSerializedName());
 			js.append("\", ");
 			js.append("value: \"");
-			js.append(StringEscapeUtils.escapeJava(e.getValue()));
+			js.append(StringEscapeUtils.escapeJava(getClickEventValue(e)));
 			js.append("\"},");
 		});
 		if (js.codePointAt(js.length() - 1) == ',') {
@@ -126,15 +126,35 @@ final class HtmlFormatAdapter extends FormatAdapter {
 		js.append("};");
 	}
 	
-	private static void serializeHoverEventValue(StringBuilder js, Object val) {
-		if (val instanceof Text) {
-			text2StringIgnoringEvents(js, (Text) val);
-		} else if (val instanceof HoverEvent.EntityContent) {
-			text2StringIgnoringEvents(js, Texts.join(((HoverEvent.EntityContent) val).asTooltip(), (t) -> t));
-		} else if (val instanceof HoverEvent.ItemStackContent) {
-			HoverEvent.ItemStackContent itemVal = (HoverEvent.ItemStackContent) val;
-			text2StringIgnoringEvents(js, itemVal.asStack().toHoverableText());
+	@SuppressWarnings("deprecation")
+	private static void serializeHoverEventValue(StringBuilder js, HoverEvent he) {
+		// HoverEvent in 26.1 is an interface; values accessed via instanceof on concrete Record types
+		if (he instanceof HoverEvent.ShowText showText) {
+			text2StringIgnoringEvents(js, showText.value());
+		} else if (he instanceof HoverEvent.ShowEntity showEntity) {
+			// Entity hover - handled by JS
+		} else if (he instanceof HoverEvent.ShowItem showItem) {
+			// Item hover - handled by JS
 		}
+		js.append("");
+	}
+	
+	@SuppressWarnings("deprecation")
+	private static String getClickEventValue(ClickEvent ce) {
+		if (ce instanceof ClickEvent.OpenUrl openUrl) {
+			return openUrl.uri().toString();
+		} else if (ce instanceof ClickEvent.OpenFile openFile) {
+			return openFile.path();
+		} else if (ce instanceof ClickEvent.RunCommand runCommand) {
+			return runCommand.command();
+		} else if (ce instanceof ClickEvent.SuggestCommand suggestCommand) {
+			return suggestCommand.command();
+		} else if (ce instanceof ClickEvent.ChangePage changePage) {
+			return Integer.toString(changePage.page());
+		} else if (ce instanceof ClickEvent.CopyToClipboard copyToClipboard) {
+			return copyToClipboard.value();
+		}
+		return "";
 	}
 	
 	private static void writeStringWithNewLines(String str, XMLStreamWriter html) throws XMLStreamException {
@@ -151,7 +171,7 @@ final class HtmlFormatAdapter extends FormatAdapter {
 		}
 	}
 
-	private static void text2StringIgnoringEvents(StringBuilder buf, Text t) {
+	private static void text2StringIgnoringEvents(StringBuilder buf, Component t) {
 		StringWriter out = new StringWriter();
 		XMLStreamWriter html;
 		try {
@@ -183,7 +203,7 @@ final class HtmlFormatAdapter extends FormatAdapter {
 
 				if (style.getColor() != null) {
 					html.writeStartElement("span");
-					html.writeAttribute("style", String.format("color: #%6x", style.getColor().getRgb() & 0xFFFFFF));
+					html.writeAttribute("style", String.format("color: #%6x", style.getColor().getValue() & 0xFFFFFF));
 					depth++;
 				}
 				
@@ -233,7 +253,7 @@ final class HtmlFormatAdapter extends FormatAdapter {
 				this.writeStartingSpan(spanId);
 				if (style.getColor() != null) {
 					this.html.writeAttribute("style", 
-							String.format("color: #%6x", style.getColor().getRgb() & 0xFFFFFF));
+							String.format("color: #%6x", style.getColor().getValue() & 0xFFFFFF));
 				}
 				
 				depth++;
@@ -286,7 +306,7 @@ final class HtmlFormatAdapter extends FormatAdapter {
 		this.html.writeEndElement();
 		this.html.writeEmptyElement("br");
 		this.html.writeCharacters(I18N.translate("export.this.html.footer2", 
-				MinecraftClient.getInstance().getGameProfile().getName()));
+				Minecraft.getInstance().getUser().getName()));
 		this.html.writeEndElement();
 	}
 	

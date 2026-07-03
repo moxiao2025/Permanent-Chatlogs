@@ -22,12 +22,20 @@ import io.netty.util.internal.StringUtil;
 import it.unimi.dsi.fastutil.ints.IntSet;
 import lovexyn0827.chatlog.config.Options;
 import lovexyn0827.chatlog.session.Session.Title;
-import net.minecraft.text.Text;
-import net.minecraft.text.TextVisitFactory;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 
 public class SessionRecorder {
 	private static SessionRecorder current = null;
+	
+	/**
+	 * When a player disconnects due to a BungeeCord/Velocity transfer (not a manual quit),
+	 * the current session is parked here. If a handleLogin arrives within the timeout window,
+	 * the session is resumed; otherwise it is finalized.
+	 */
+	private static SessionRecorder transferSession = null;
+	private static final long TRANSFER_TIMEOUT_MS = 30_000; // 30 seconds
+	
 	private Deque<Session.Line> cachedChatLogs;
 	private final LinkedHashMap<UUID, String> uuidToName;
 	private final String saveName;
@@ -70,6 +78,9 @@ public class SessionRecorder {
 	}
 	
 	public static SessionRecorder start(String saveName, boolean multiplayer) {
+		// Finalize any pending transfer session (user explicitly joined a new server)
+		finalizeStaleTransfer();
+		
 		if (Options.newSessionPerMcLaunch) {
 			SessionRecorder recorder = current == null ? startAnew(saveName, multiplayer) : current;
 			if (Options.gameSessionIndicator) {
@@ -94,10 +105,75 @@ public class SessionRecorder {
 	}
 	
 	/**
+	 * Park the current session for a potential BungeeCord/Velocity transfer.
+	 * Unlike end(), the autosave worker keeps running. If a reconnect happens 
+	 * within the timeout window, the session is resumed.
+	 */
+	public static void prepareForTransfer() {
+		if (current == null) {
+			return;
+		}
+		synchronized (SessionRecorder.class) {
+			transferSession = current;
+			current = null;
+		}
+		transferSession.updateSummary();
+		// Schedule cleanup: if no reconnect within 30 seconds, finalize the session
+		Thread cleanup = new Thread(() -> {
+			try {
+				Thread.sleep(TRANSFER_TIMEOUT_MS);
+			} catch (InterruptedException e) {
+				return; // Session was resumed
+			}
+			synchronized (SessionRecorder.class) {
+				if (transferSession != null) {
+					transferSession.end0();
+					transferSession = null;
+				}
+			}
+		}, "ChatLog Transfer Cleanup");
+		cleanup.setDaemon(true);
+		cleanup.start();
+	}
+	
+	/**
+	 * Attempt to resume a session that was paused for transfer.
+	 * @return true if a paused session was successfully resumed
+	 */
+	public static boolean resumeFromTransfer() {
+		synchronized (SessionRecorder.class) {
+			if (transferSession != null) {
+				current = transferSession;
+				transferSession = null;
+				return true;
+			}
+		}
+		return false;
+	}
+	
+	/**
+	 * Finalize any pending transfer session. Called when the user explicitly 
+	 * joins a different server, or when the client exits.
+	 */
+	private static void finalizeStaleTransfer() {
+		synchronized (SessionRecorder.class) {
+			if (transferSession != null) {
+				transferSession.end0();
+				transferSession = null;
+			}
+		}
+	}
+	
+	/**
 	 * Called when the player leaves a world, or when the client exits
 	 * @param clientExiting {@code true} if the client is exiting
 	 */
 	public static void end(boolean clientExiting) {
+		// On client exit, also finalize any pending transfer session
+		if (clientExiting) {
+			finalizeStaleTransfer();
+		}
+		
 		if (current == null) {
 			return;
 		}
@@ -109,12 +185,12 @@ public class SessionRecorder {
 		}
 	}
 
-	public void onMessage(UUID sender, Text msg) {
-		long timestamp = Util.getEpochTimeMs();
+	public void onMessage(UUID sender, Component msg) {
+		long timestamp = Util.getEpochMillis();
 		this.cachedChatLogs.addLast(new Session.Line(sender, msg, timestamp));
 		this.uuidToName.computeIfAbsent(sender, (uuid) -> {
 			// Naive solution?
-			String string = TextVisitFactory.removeFormattingCodes(msg);
+			String string = msg.getString();
 			String name = StringUtils.substringBetween(string, "<", ">");
 			return name == null ? "[UNSPECIFIED]" : name;
 		});
@@ -126,17 +202,17 @@ public class SessionRecorder {
 		this.messageCount++;
 	}
 
-	public void addOverlayMessage(Text message, boolean tinted, long time) {
+	public void addOverlayMessage(Component message, boolean tinted, long time) {
 		this.cachedChatLogs.add(new Title(message, time, Title.Type.OVERLAY));
 		this.messageCount++;
 	}
 
-	public void addTitle(Text message, long time) {
+	public void addTitle(Component message, long time) {
 		this.cachedChatLogs.add(new Title(message, time, Title.Type.TITLE));
 		this.messageCount++;
 	}
 
-	public void addSubtitle(Text message, long time) {
+	public void addSubtitle(Component message, long time) {
 		this.cachedChatLogs.add(new Title(message, time, Title.Type.SUBTITLE));
 		this.messageCount++;
 	}
@@ -146,7 +222,7 @@ public class SessionRecorder {
 	}
 	
 	private void addWorldIndicator(String saveName, boolean multiplayer) {
-		this.cachedChatLogs.add(new Session.WorldIndicator(saveName, multiplayer, Util.getEpochTimeMs()));
+		this.cachedChatLogs.add(new Session.WorldIndicator(saveName, multiplayer, Util.getEpochMillis()));
 	}
 	
 	void end0() {
@@ -162,7 +238,7 @@ public class SessionRecorder {
 	 * Only guaranteed to be accurate when invoked on terminated or deserialized Sessions.
 	 */
 	private Session.Summary toSummary() {
-		return new Session.Summary(this.id, this.saveName, this.startTime, Util.getEpochTimeMs(), this.messageCount, 
+		return new Session.Summary(this.id, this.saveName, this.startTime, Util.getEpochMillis(), this.messageCount, 
 				this.timeZone, this.multiplayer, this.version);
 	}
 	

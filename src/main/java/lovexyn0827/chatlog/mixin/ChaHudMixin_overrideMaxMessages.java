@@ -5,13 +5,13 @@ import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;
 
 import lovexyn0827.chatlog.config.Options;
-import net.minecraft.client.gui.hud.ChatHud;
+import net.minecraft.client.gui.components.ChatComponent;
 
-@Mixin(value = ChatHud.class, priority = 408)
+@Mixin(value = ChatComponent.class, priority = 408)
 public class ChaHudMixin_overrideMaxMessages {
 	@ModifyConstant(
-			method = "addMessage(Lnet/minecraft/text/Text;Lnet/minecraft/network/message/MessageSignatureData;"
-					+ "ILnet/minecraft/client/gui/hud/MessageIndicator;Z)V", 
+			method = "addMessage(Lnet/minecraft/network/chat/Component;Lnet/minecraft/network/chat/MessageSignature;"
+					+ "Lnet/minecraft/client/multiplayer/chat/GuiMessageSource;Lnet/minecraft/client/multiplayer/chat/GuiMessageTag;)V", 
 			constant = @Constant(intValue = 100), 
 			require = 0
 	)

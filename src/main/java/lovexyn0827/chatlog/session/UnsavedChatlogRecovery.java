@@ -16,8 +16,8 @@ import java.util.concurrent.locks.LockSupport;
 
 import lovexyn0827.chatlog.config.Options;
 import lovexyn0827.chatlog.i18n.I18N;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.toast.SystemToast;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.toasts.SystemToast;
 
 public class UnsavedChatlogRecovery {
 	private static final File UNSAVED_MARKER = new File(Session.CHATLOG_FOLDER, "unsaved.marker");
@@ -147,10 +147,10 @@ public class UnsavedChatlogRecovery {
 		}
 		
 		if (!success) {
-			SystemToast warning = new SystemToast(new SystemToast.Type(), 
+			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.restore.failure"), 
 					I18N.translateAsText("gui.restore.failure.desc"));
-			MinecraftClient.getInstance().getToastManager().add(warning);
+			Minecraft.getInstance().getToastManager().addToast(warning);
 		}
 		
 		SessionUtils.lockFileOf(unsaved).delete();

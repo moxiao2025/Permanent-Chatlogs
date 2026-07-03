@@ -6,11 +6,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import lovexyn0827.chatlog.PermanentChatLogMod;
-import net.minecraft.text.ClickEvent;
+import net.minecraft.network.chat.ClickEvent;
 
 @Mixin(ClickEvent.Action.class)
 public class ClickEventActionMixin {
-	@Inject(method = "isUserDefinable", at = @At("HEAD"), cancellable = true)
+	@Inject(method = "isAllowedFromServer", at = @At("HEAD"), cancellable = true)
 	void fuckOjang(CallbackInfoReturnable<Boolean> cir) {
 		if(PermanentChatLogMod.PERMISSIVE_EVENTS.get()) {
 			cir.setReturnValue(true);

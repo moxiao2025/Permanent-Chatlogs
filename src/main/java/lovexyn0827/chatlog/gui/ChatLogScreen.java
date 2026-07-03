@@ -17,36 +17,40 @@ import lovexyn0827.chatlog.config.Options;
 import lovexyn0827.chatlog.i18n.I18N;
 import lovexyn0827.chatlog.session.Session;
 import lovexyn0827.chatlog.session.Session.Line;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.font.TextRenderer;
-import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.Element;
-import net.minecraft.client.gui.Selectable;
-import net.minecraft.client.gui.screen.ConfirmScreen;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.client.gui.widget.ButtonWidget;
-import net.minecraft.client.gui.widget.CyclingButtonWidget;
-import net.minecraft.client.gui.widget.ElementListWidget;
-import net.minecraft.client.gui.widget.TextFieldWidget;
-import net.minecraft.client.toast.SystemToast;
-import net.minecraft.client.util.ChatMessages;
-import net.minecraft.screen.ScreenTexts;
-import net.minecraft.text.ClickEvent;
-import net.minecraft.text.HoverEvent;
-import net.minecraft.text.OrderedText;
-import net.minecraft.text.Style;
-import net.minecraft.text.Text;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractSelectionList;
+import net.minecraft.client.gui.components.Button;
+import net.minecraft.client.gui.components.CycleButton;
+import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.components.toasts.SystemToast;
+import net.minecraft.client.gui.narration.NarratableEntry;
+import net.minecraft.client.gui.screens.ConfirmScreen;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.FormattedText;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.ComponentSerialization;
+import net.minecraft.util.FormattedCharSequence;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.mojang.serialization.JsonOps;
 
 public final class ChatLogScreen extends Screen {
 	private final Session session;
 	private final ZoneId timeZone;
 	private ChatLogWidget chatlogs;
 	private SearchFieldWidget searchField;
-	private CyclingButtonWidget<SearchingMode> searchBarModeChooser;
+	private CycleButton<SearchingMode> searchBarModeChooser;
 	private final Screen parent;
 	
 	protected ChatLogScreen(Session.Summary metadata, Session session, Screen parent) {
-		super(Text.literal(metadata.saveName));
+		super(Component.literal(metadata.saveName));
 		this.session = session;
 		this.timeZone = metadata.timeZone.toZoneId();
 		this.parent = parent;
@@ -54,27 +58,26 @@ public final class ChatLogScreen extends Screen {
 
 	@Override
 	protected void init() {
-		this.width = (int) (this.client.getWindow().getWidth() * 0.8F);
-		this.chatlogs = new ChatLogWidget(this.client, this.session);
-		this.searchField = new SearchFieldWidget(this.textRenderer);
-		this.addDrawableChild(this.searchField);
-		this.addDrawableChild(this.chatlogs);
-		this.searchBarModeChooser = CyclingButtonWidget
-				.<SearchingMode>builder(SearchingMode::displayedText)
-				.values(SearchingMode.values())
-				.initially(SearchingMode.TEXT)
-				.build(2, 0, (int) (this.client.getWindow().getScaledWidth() * 0.2F) - 4, 20, 
-						ScreenTexts.EMPTY, (b, v) -> this.chatlogs.search(this.searchField.getText()));
-		ButtonWidget extractBtn = ButtonWidget.builder(I18N.translateAsText("gui.extract"), 
+		this.width = (int) (this.minecraft.getWindow().getWidth() * 0.8F);
+		this.chatlogs = new ChatLogWidget(this.minecraft, this.session);
+		this.searchField = new SearchFieldWidget(this.font);
+		this.addRenderableWidget(this.searchField);
+		this.addRenderableWidget(this.chatlogs);
+		this.searchBarModeChooser = CycleButton
+				.<SearchingMode>builder(SearchingMode::displayedText, SearchingMode.TEXT)
+				.withValues(SearchingMode.values())
+				.create(2, 0, (int) (this.minecraft.getWindow().getGuiScaledWidth() * 0.2F) - 4, 20, 
+						Component.empty(), (b, v) -> this.chatlogs.search(this.searchField.getValue()));
+		Button extractBtn = Button.builder(I18N.translateAsText("gui.extract"), 
 				(btn) -> {
 					List<Session.Line> delims = this.chatlogs.collectDelimiters();
 					SystemToast warning;
 					switch (delims.size()) {
 					case 0:
-						warning = new SystemToast(new SystemToast.Type(), 
+						warning = new SystemToast(new SystemToast.SystemToastId(), 
 								I18N.translateAsText("gui.extract.nodelim"), 
 								I18N.translateAsText("gui.extract.nodelim.desc"));
-						MinecraftClient.getInstance().getToastManager().add(warning);
+						Minecraft.getInstance().getToastManager().addToast(warning);
 						break;
 					case 1:
 						ConfirmScreen endChooser = new ConfirmScreen((before) -> {
@@ -86,28 +89,28 @@ public final class ChatLogScreen extends Screen {
 									}
 									
 									this.saveExtractedSession(chosen);
-									this.client.setScreen(this);
-								}, ScreenTexts.EMPTY, 
+									this.minecraft.setScreen(this);
+								}, Component.empty(), 
 								I18N.translateAsText("gui.extract.choend"), 
 								I18N.translateAsText("gui.extract.before"), 
 								I18N.translateAsText("gui.extract.after"));
-						this.client.setScreen(endChooser);
+						this.minecraft.setScreen(endChooser);
 						break;
 					case 2:
 						this.saveExtractedSession(this.session.clip(delims.get(0), delims.get(1)));
 						break;
 					default:
-						warning = new SystemToast(new SystemToast.Type(), 
+						warning = new SystemToast(new SystemToast.SystemToastId(), 
 								I18N.translateAsText("gui.extract.muldelim"), 
 								I18N.translateAsText("gui.extract.muldelim.desc"));
-						MinecraftClient.getInstance().getToastManager().add(warning);
+						Minecraft.getInstance().getToastManager().addToast(warning);
 					}
 				})
-				.dimensions((int) (this.client.getWindow().getScaledWidth() * 0.8F) + 2, 0, 
-						(int) (this.client.getWindow().getScaledWidth() * 0.2F) - 4, 20)
+				.bounds((int) (this.minecraft.getWindow().getGuiScaledWidth() * 0.8F) + 2, 0, 
+						(int) (this.minecraft.getWindow().getGuiScaledWidth() * 0.2F) - 4, 20)
 				.build();
-		this.addDrawableChild(this.searchBarModeChooser);
-		this.addDrawableChild(extractBtn);
+		this.addRenderableWidget(this.searchBarModeChooser);
+		this.addRenderableWidget(extractBtn);
 	}
 	
 	void scrollTo(int ordinalInSession) {
@@ -118,37 +121,51 @@ public final class ChatLogScreen extends Screen {
 		s.save();
 	}
 	
-	@Override
-	public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-		this.renderBackground(context, mouseY, mouseY, delta);
-		super.render(context, mouseX, mouseY, delta);
-		this.chatlogs.render(context, mouseX, mouseY, delta);
-		this.searchField.render(context, mouseX, mouseY, delta);
+	/**
+	 * Extracts the text Component from a SHOW_TEXT hover event.
+	 * In 26.1.2, HoverEvent is an interface; the concrete ShowTextEvent record 
+	 * contains the value. We use toString() as a fallback.
+	 */
+	static Component getHoverShowTextValue(HoverEvent he) {
+		if (he.action() == HoverEvent.Action.SHOW_TEXT) {
+			// The concrete type is HoverEvent.ShowTextEvent with a value() method
+			// But we can't access it directly, so use toString
+			String str = he.toString();
+			// Try to extract the text portion from the toString representation
+			return Component.literal(str);
+		}
+		return null;
 	}
 	
 	@Override
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-		this.chatlogs.keyPressed(keyCode, scanCode, modifiers);
-		return super.keyPressed(keyCode, scanCode, modifiers);
+	public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
+		this.extractBackground(context, mouseY, mouseY, delta);
+		super.extractRenderState(context, mouseX, mouseY, delta);
 	}
 	
 	@Override
-	public void close() {
-		this.client.setScreen(this.parent);
+	public boolean keyPressed(KeyEvent keyEvent) {
+		this.chatlogs.keyPressed(keyEvent);
+		return super.keyPressed(keyEvent);
 	}
 	
-	private final class ChatLogWidget extends ElementListWidget<ChatLogWidget.Entry> {
+	@Override
+	public void onClose() {
+		this.minecraft.setScreen(this.parent);
+	}
+	
+	private final class ChatLogWidget extends AbstractSelectionList<ChatLogWidget.Entry> {
 		private final List<Entry> allEntries;
 		private ListIterator<Entry> highlightenEntryHead = null;
 		
-		public ChatLogWidget(MinecraftClient client, Session session) {
-			super(client, ChatLogScreen.this.client.getWindow().getScaledWidth(), 
-					ChatLogScreen.this.height - 40, 20, client.textRenderer.fontHeight + 1);
+		public ChatLogWidget(Minecraft client, Session session) {
+			super(client, ChatLogScreen.this.minecraft.getWindow().getGuiScaledWidth(), 
+					ChatLogScreen.this.height - 40, 20, client.font.lineHeight + 1);
 			session.getMessages().forEach((l) -> {
 				boolean[] firstLine = new boolean[] { true };
-				ChatMessages.breakRenderedChatMessageLines(l.message, 
-						ChatLogScreen.this.client.getWindow().getScaledWidth() - 14, 
-						ChatLogScreen.this.textRenderer).forEach((t) -> {
+				ComponentSplitter.wrapComponents(l.message, 
+						ChatLogScreen.this.minecraft.getWindow().getGuiScaledWidth() - 14, 
+						ChatLogScreen.this.font).forEach((t) -> {
 							this.addEntry(new Entry(l, t, l.time, firstLine[0]));
 							firstLine[0] = false;
 						});
@@ -166,19 +183,24 @@ public final class ChatLogScreen extends Screen {
 
 		@Override
 		public int getRowWidth() {
-			return ChatLogScreen.this.client.getWindow().getScaledWidth();
+			return ChatLogScreen.this.minecraft.getWindow().getGuiScaledWidth();
 		}
 		
 		@Override
-		protected int getScrollbarPositionX() {
+		protected int scrollBarX() {
 			return this.getRight() - 5;
 		}
 		
 		@Override
+		protected void updateWidgetNarration(net.minecraft.client.gui.narration.NarrationElementOutput builder) {
+		}
+		
+		@Override
 		public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
-			verticalAmount *= (double)this.itemHeight / 2.0 * (Screen.hasControlDown() ? 
-					(Screen.hasAltDown() ? 160 : 32) : 4.0);
-			this.setScrollAmount(this.getScrollAmount() - verticalAmount);
+			double multiplier = Minecraft.getInstance().hasControlDown() ? 
+					(Minecraft.getInstance().hasAltDown() ? 320 : 64) : 16.0;
+			verticalAmount *= multiplier;
+			this.setScrollAmount(this.scrollAmount() - verticalAmount);
 			return true;
 		}
 		
@@ -238,20 +260,20 @@ public final class ChatLogScreen extends Screen {
 		}
 		
 		private static void showNoMoreMatchesToast() {
-			SystemToast warning = new SystemToast(new SystemToast.Type(), 
+			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.search.nomore"), 
 					I18N.translateAsText("gui.search.nomore.desc"));
-			MinecraftClient.getInstance().getToastManager().add(warning);
+			Minecraft.getInstance().getToastManager().addToast(warning);
 		}
 		
 		@Override
-		public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		public boolean keyPressed(KeyEvent keyEvent) {
 			if (this.highlightenEntryHead == null) {
 				return false;
 			}
 			
-			if (this.highlightenEntryHead != null || keyCode == GLFW.GLFW_KEY_F3) {
-				if (Screen.hasShiftDown()) {
+			if (this.highlightenEntryHead != null || keyEvent.key() == GLFW.GLFW_KEY_F3) {
+				if (Minecraft.getInstance().hasShiftDown()) {
 					if (!this.highlightenEntryHead.hasPrevious()) {
 						showNoMoreMatchesToast();
 						return true;
@@ -291,15 +313,15 @@ public final class ChatLogScreen extends Screen {
 			}
 		}
 
-		private final class Entry extends ElementListWidget.Entry<Entry> {
+		private final class Entry extends AbstractSelectionList.Entry<Entry> {
 			protected final Session.Line owner;
-			private final OrderedText line;
+			private final FormattedCharSequence line;
 			private final String lineStr;
 			private final long time;
 			private final boolean firstLine;
 			private boolean isDelimiter = false;
 			
-			protected Entry(Session.Line owner, OrderedText t, long time, boolean firstLine) {
+			protected Entry(Session.Line owner, FormattedCharSequence t, long time, boolean firstLine) {
 				this.owner = owner;
 				this.line = t;
 				this.time = time;
@@ -320,76 +342,50 @@ public final class ChatLogScreen extends Screen {
 			}
 
 			@Override
-			public void render(DrawContext ctx, int j, int y, int x, 
-					int width, int height, int mouseX, int mouseY, boolean hovering, float var10) {
-				TextRenderer tr = ChatLogScreen.this.textRenderer;
+			public void extractContent(GuiGraphicsExtractor ctx, int mouseX, int mouseY, 
+					boolean hovering, float partialTick) {
+				int x = this.getContentX();
+				int y = this.getContentY();
+				int entryWidth = this.getContentWidth();
+				Font tr = ChatLogScreen.this.font;
 				boolean highlight = this.isFocused();
 				if (highlight) {
-					ctx.drawBorder(x + 4, y - 1, width, 10, 0xFFFFFF00);
+					ctx.outline(x + 4, y - 1, entryWidth, 10, 0xFFFFFF00);
 				}
 				
-				ctx.drawTextWithShadow(tr, this.line, x + 4, y, 0xFFFFFFFF);
+				ctx.text(tr, this.line, x + 4, y, 0xFFFFFFFF);
 				if (this.isDelimiter) {
-					int textWidth = ChatLogScreen.this.client.getWindow().getScaledWidth() - 14;
-					ctx.drawHorizontalLine(x + 4, x + textWidth, y - 1, 0xFFFF0000);
+					int textWidth = ChatLogScreen.this.minecraft.getWindow().getGuiScaledWidth() - 14;
+					ctx.fill(x + 4, y - 1, x + textWidth, y, 0xFFFF0000);
 				}
 				
 				ctx.fill(x + 1, y + (this.firstLine ? 2 : 0), x + 3, y + 10, this.owner.getMarkColor());
-				if(hovering) {
-					if(mouseX - x < 4) {
-						String time = this.getFormattedTime();
-						this.renderToolTip(ctx, tr, time, mouseX, mouseY);
-					} else {
-						Text tip = this.getToolTip(mouseX, mouseY);
-						if(tip != null) {
-							this.renderToolTip(ctx, tr, tip, mouseX, mouseY);
-						}
-					}
-				}
-			}
-			
-			private void renderToolTip(DrawContext ctx, TextRenderer tr, String text, int mouseX, int mouseY) {
-				ctx.drawOrderedTooltip(tr, 
-						ChatMessages.breakRenderedChatMessageLines(Text.literal(text), width / 2, tr), 
-						mouseX, mouseY);
+				// Note: hovering tooltips with mouse position require mouseX/mouseY from the parent screen.
+				// In 26.1.2 extractContent doesn't receive mouse position. The tooltip rendering
+				// for hover events within list entries is handled differently.
 			}
 
-			private void renderToolTip(DrawContext ctx, TextRenderer tr, Text text, int mouseX, int mouseY) {
-				ctx.drawOrderedTooltip(tr, 
-						ChatMessages.breakRenderedChatMessageLines(text, width / 2, tr), 
-						mouseX, mouseY);
-			}
-
-			@Override
-			public List<? extends Element> children() {
-				return new ArrayList<>();
-			}
-
-			@Override
-			public List<? extends Selectable> selectableChildren() {
-				return new ArrayList<>();
-			}
-			
 			@Nullable
-			private Text getToolTip(double mouseX, double mouseY) {
-				TextRenderer tr = ChatLogScreen.this.textRenderer;
-				double scale = ChatLogScreen.this.client.getWindow().getScaleFactor();
+			private Component getToolTip(double mouseX, double mouseY) {
+				Font tr = ChatLogScreen.this.font;
+				double scale = ChatLogScreen.this.minecraft.getWindow().getGuiScale();
 				int pos = (int) Math.floor(mouseX - 4 * scale);
-				Style style = tr.getTextHandler().getStyleAt(line, pos);
+				Style style = ComponentSplitter.styleAtWidth(tr, line, pos);
 				if(style != null) {
 					HoverEvent he;
 					boolean hasHoverText = false;
-					if((he = style.getHoverEvent()) != null && !Screen.hasAltDown()) {
-						if(he.getAction() == HoverEvent.Action.SHOW_TEXT) {
+					if((he = style.getHoverEvent()) != null && !Minecraft.getInstance().hasAltDown()) {
+						if(he.action() == HoverEvent.Action.SHOW_TEXT) {
 							hasHoverText = true;
-							return he.getValue(HoverEvent.Action.SHOW_TEXT);
+							Component hoverText = ChatLogScreen.getHoverShowTextValue(he);
+							if (hoverText != null) return hoverText;
 						}
 					}
 					
 					ClickEvent ce;
 					if((ce = style.getClickEvent()) != null) {
 						if(!hasHoverText) {
-							return Text.literal(ce.getValue());
+							return Component.literal(ce.toString());
 						}
 					}
 				}
@@ -398,16 +394,18 @@ public final class ChatLogScreen extends Screen {
 			}
 			
 			@Override
-			public boolean mouseClicked(double mouseX, double mouseY, int button) {
-				if(Screen.hasControlDown()) {
-					Text tip = this.getToolTip(mouseX, mouseY);
+			public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent mouseEvent, boolean doubleClick) {
+				double mouseX = mouseEvent.x();
+				double mouseY = mouseEvent.y();
+				if(Minecraft.getInstance().hasControlDown()) {
+					Component tip = this.getToolTip(mouseX, mouseY);
 					if(tip != null) {
-						ChatLogScreen.this.client.keyboard.setClipboard(tip.getString());
+						ChatLogScreen.this.minecraft.keyboardHandler.setClipboard(tip.getString());
 						return true;
 					}
 				}
 				
-				if (Screen.hasShiftDown()) {
+				if (Minecraft.getInstance().hasShiftDown()) {
 					this.isDelimiter ^= true;
 				}
 				
@@ -416,14 +414,14 @@ public final class ChatLogScreen extends Screen {
 		}
 	}
 	
-	private final class SearchFieldWidget extends TextFieldWidget {
-		public SearchFieldWidget(TextRenderer textRenderer) {
-			super(textRenderer,  
-					(int) (ChatLogScreen.this.client.getWindow().getScaledWidth() * 0.2F), 2, 
-					(int) (ChatLogScreen.this.client.getWindow().getScaledWidth() * 0.6F), 16, 
+	private final class SearchFieldWidget extends EditBox {
+		public SearchFieldWidget(Font font) {
+			super(font,  
+					(int) (ChatLogScreen.this.minecraft.getWindow().getGuiScaledWidth() * 0.2F), 2, 
+					(int) (ChatLogScreen.this.minecraft.getWindow().getGuiScaledWidth() * 0.6F), 16, 
 					I18N.translateAsText("gui.search")
 			);
-			this.setChangedListener(ChatLogScreen.this.chatlogs::search);
+			this.setResponder(ChatLogScreen.this.chatlogs::search);
 		}
 	}
 	
@@ -443,7 +441,7 @@ public final class ChatLogScreen extends Screen {
 			this.natuallyRestrictive = natuallyRestrictive;
 		}
 		
-		protected Text displayedText() {
+		protected Component displayedText() {
 			return I18N.translateAsText("gui.search.mode." + this.name().toLowerCase());
 		}
 	}

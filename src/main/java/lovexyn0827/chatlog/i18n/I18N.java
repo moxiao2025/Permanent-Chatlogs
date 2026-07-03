@@ -5,10 +5,8 @@ import org.apache.logging.log4j.Logger;
 
 import com.google.common.collect.ImmutableSet;
 
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.text.Text;
-import net.minecraft.util.crash.CrashException;
-import net.minecraft.util.crash.CrashReport;
+import net.minecraft.client.Minecraft;
+import net.minecraft.network.chat.Component;
 
 /**
  * Translation.
@@ -33,19 +31,19 @@ public class I18N {
 		return String.format(translate(translationKey), args);
 	}
 	
-	public static Text translateAsText(String translationKey) {
-		return Text.literal(translate(translationKey));
+	public static Component translateAsText(String translationKey) {
+		return Component.literal(translate(translationKey));
 	}
 
-	public static Text translateAsText(String translationKey, Object ... args) {
-		return Text.literal(translate(translationKey, args));
+	public static Component translateAsText(String translationKey, Object ... args) {
+		return Component.literal(translate(translationKey, args));
 	}
 	
 	@SuppressWarnings("resource")
 	public static boolean setLanguage(String name) {
 		if(name == null) {
-			if(MinecraftClient.getInstance().options != null) {
-				String sysLang = MinecraftClient.getInstance().options.language;
+			if(Minecraft.getInstance().options != null) {
+				String sysLang = Minecraft.getInstance().options.languageCode;
 				if(SUPPORTED_LANGUAGES.contains(sysLang)) {
 					name = sysLang;
 				} else {
@@ -82,7 +80,7 @@ public class I18N {
 			EN_US = new Language("en_us");
 			setLanguage(null);
 		} catch (Exception e) {
-			throw new CrashException(new CrashReport("Couldn't load the default translation.", e));
+			throw new RuntimeException("Couldn't load the default translation.", e);
 		}
 	}
 }

@@ -12,30 +12,31 @@ import lovexyn0827.chatlog.gui.NewEventMarkerScreen;
 import lovexyn0827.chatlog.i18n.I18N;
 import lovexyn0827.chatlog.session.Session;
 import lovexyn0827.chatlog.session.SessionRecorder;
-import net.minecraft.client.Keyboard;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.Screen;
-import net.minecraft.text.Text;
-import net.minecraft.util.DyeColor;
+import net.minecraft.client.KeyboardHandler;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.KeyEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.DyeColor;
 
-@Mixin(Keyboard.class)
+@Mixin(KeyboardHandler.class)
 public abstract class KeyboardMixin {
-	@Shadow @Final MinecraftClient client;
+	@Shadow @Final Minecraft minecraft;
 	
-	@Inject(method = "onKey", at = @At("RETURN"))
-	private void handleKey(long window, int key, int scancode, int i, int j, CallbackInfo ci) {
-		boolean isBeingPressed = i == GLFW.GLFW_PRESS;
-		if(key == 'M' && Screen.hasControlDown() && isBeingPressed && SessionRecorder.current() != null) {
-			if (Screen.hasAltDown()) {
-				Text title = I18N.translateAsText("gui.marker.title");
-				Session.Event event = new Session.Event(title, 
-						System.currentTimeMillis(), DyeColor.RED.getSignColor());
-				SessionRecorder.current().addEvent(event);
-				this.client.inGameHud.setOverlayMessage(title, true);
+	@Inject(method = "keyPress", at = @At("RETURN"))
+	private void handleKey(long window, int action, KeyEvent event, CallbackInfo ci) {
+		boolean isBeingPressed = action == GLFW.GLFW_PRESS;
+		if(event.key() == 'M' && Minecraft.getInstance().hasControlDown() && isBeingPressed && SessionRecorder.current() != null) {
+			if (Minecraft.getInstance().hasAltDown()) {
+				Component title = I18N.translateAsText("gui.marker.title");
+				Session.Event sessionEvent = new Session.Event(title, 
+						System.currentTimeMillis(), DyeColor.RED.getTextColor());
+				SessionRecorder.current().addEvent(sessionEvent);
+				this.minecraft.gui.setOverlayMessage(title, true);
 				return;
 			}
 			
-			MinecraftClient.getInstance().setScreen(new NewEventMarkerScreen());
+			Minecraft.getInstance().setScreen(new NewEventMarkerScreen());
 		}
 	}
 }
