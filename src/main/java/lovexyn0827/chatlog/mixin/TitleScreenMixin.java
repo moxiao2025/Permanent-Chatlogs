@@ -22,8 +22,8 @@ public class TitleScreenMixin extends Screen {
 	@Inject(method = "init", at = @At("RETURN"))
 	private void onInit(CallbackInfo ci) {
 		this.addRenderableWidget(Button.builder(I18N.translateAsText("gui.chatlogs"), 
-						(btn) -> this.minecraft.setScreen(new SessionListScreen(minecraft.screen)))
-				.bounds(this.width / 2 - 100, (this.height / 4 + 48) + 92 + 12, 98, 20)
+						(btn) -> this.minecraft.gui.setScreen(new SessionListScreen(this.minecraft.gui.screen())))
+				.bounds(this.width / 2 - 100, (this.height / 4 + 48) + 120, 98, 20)
 				.build());
 		UnsavedChatlogRecovery.tryRestoreUnsaved();
 	}

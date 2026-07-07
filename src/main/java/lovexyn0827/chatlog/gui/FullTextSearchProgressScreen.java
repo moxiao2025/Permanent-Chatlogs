@@ -35,7 +35,7 @@ public class FullTextSearchProgressScreen extends Screen {
 
 	@Override
 	public void onClose() {
-		this.minecraft.setScreen(this.parent);
+		this.minecraft.gui.setScreen(this.parent);
 	}
 
 	@Override
@@ -51,7 +51,7 @@ public class FullTextSearchProgressScreen extends Screen {
 				this.width / 2, (int) (this.height * 0.4), 0xFFFFFFFF);
 		this.drawProgressBar(ctx, (int) (this.height * 0.4) + 15, this.doneCount.get(), this.total);
 		if (this.doneCount.get() == this.total) {
-			this.minecraft.setScreen(new ConfirmScreen(this::showSearchResults, 
+			this.minecraft.gui.setScreen(new ConfirmScreen(this::showSearchResults, 
 					I18N.translateAsText("gui.filter.showmode"), 
 					I18N.translateAsText("gui.filter.showmode.desc"),  
 					I18N.translateAsText("gui.filter.showmode.message"), 
@@ -71,9 +71,9 @@ public class FullTextSearchProgressScreen extends Screen {
 	
 	private void showSearchResults(boolean showMessage) {
 		if (showMessage) {
-			this.minecraft.setScreen(new FullTextSearchResultScreen(this.parent,this.results));
+			this.minecraft.gui.setScreen(new FullTextSearchResultScreen(this.parent,this.results));
 		} else {
-			this.minecraft.setScreen(new SessionListScreen(this.parent,this.results::containsKey));
+			this.minecraft.gui.setScreen(new SessionListScreen(this.parent,this.results::containsKey));
 		}
 	}
 	

@@ -44,13 +44,12 @@ public final class SettingScreen extends Screen {
 	
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float delta) {
-		this.extractBackground(ctx, mouseY, mouseY, delta);
 		super.extractRenderState(ctx, mouseX, mouseY, delta);
 	}
 	
 	@Override
 	public void onClose() {
-		this.minecraft.setScreen(this.parent);
+		this.minecraft.gui.setScreen(this.parent);
 	}
 	
 	private final class OptionListWidget extends AbstractSelectionList<OptionListWidget.Entry> {

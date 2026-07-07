@@ -77,7 +77,7 @@ public final class ChatLogScreen extends Screen {
 						warning = new SystemToast(new SystemToast.SystemToastId(), 
 								I18N.translateAsText("gui.extract.nodelim"), 
 								I18N.translateAsText("gui.extract.nodelim.desc"));
-						Minecraft.getInstance().getToastManager().addToast(warning);
+						Minecraft.getInstance().gui.toastManager().addToast(warning);
 						break;
 					case 1:
 						ConfirmScreen endChooser = new ConfirmScreen((before) -> {
@@ -89,12 +89,12 @@ public final class ChatLogScreen extends Screen {
 									}
 									
 									this.saveExtractedSession(chosen);
-									this.minecraft.setScreen(this);
+									this.minecraft.gui.setScreen(this);
 								}, Component.empty(), 
 								I18N.translateAsText("gui.extract.choend"), 
 								I18N.translateAsText("gui.extract.before"), 
 								I18N.translateAsText("gui.extract.after"));
-						this.minecraft.setScreen(endChooser);
+						this.minecraft.gui.setScreen(endChooser);
 						break;
 					case 2:
 						this.saveExtractedSession(this.session.clip(delims.get(0), delims.get(1)));
@@ -103,7 +103,7 @@ public final class ChatLogScreen extends Screen {
 						warning = new SystemToast(new SystemToast.SystemToastId(), 
 								I18N.translateAsText("gui.extract.muldelim"), 
 								I18N.translateAsText("gui.extract.muldelim.desc"));
-						Minecraft.getInstance().getToastManager().addToast(warning);
+						Minecraft.getInstance().gui.toastManager().addToast(warning);
 					}
 				})
 				.bounds((int) (this.minecraft.getWindow().getGuiScaledWidth() * 0.8F) + 2, 0, 
@@ -139,7 +139,6 @@ public final class ChatLogScreen extends Screen {
 	
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta) {
-		this.extractBackground(context, mouseY, mouseY, delta);
 		super.extractRenderState(context, mouseX, mouseY, delta);
 	}
 	
@@ -151,7 +150,7 @@ public final class ChatLogScreen extends Screen {
 	
 	@Override
 	public void onClose() {
-		this.minecraft.setScreen(this.parent);
+		this.minecraft.gui.setScreen(this.parent);
 	}
 	
 	private final class ChatLogWidget extends AbstractSelectionList<ChatLogWidget.Entry> {
@@ -263,7 +262,7 @@ public final class ChatLogScreen extends Screen {
 			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.search.nomore"), 
 					I18N.translateAsText("gui.search.nomore.desc"));
-			Minecraft.getInstance().getToastManager().addToast(warning);
+			Minecraft.getInstance().gui.toastManager().addToast(warning);
 		}
 		
 		@Override

@@ -55,7 +55,7 @@ public class NewEventMarkerScreen extends Screen {
 				SessionRecorder.current().addEvent(event);
 			}
 			
-			mc.gui.setOverlayMessage(title, true);
+			mc.gui.hud.setOverlayMessage(title, true);
 			this.onClose();
 		}).bounds((int) (width * 0.3), (int) (this.height * 0.25) + 54, (int) (width * 0.4), 23).build();
 		this.addRenderableWidget(saveBtn);

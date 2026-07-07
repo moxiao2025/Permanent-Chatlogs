@@ -21,7 +21,7 @@ public class GameMenuScreenMixin extends Screen {
 	@Inject(method = "init", at = @At("TAIL"))
 	private void appendButtons(CallbackInfo ci) {
 		Button chatlogBtn = Button.builder(I18N.translateAsText("gui.chatlogs"), (btn) -> {
-			this.minecraft.setScreen(new SessionListScreen(minecraft.screen));
+			this.minecraft.gui.setScreen(new SessionListScreen(this.minecraft.gui.screen()));
 		}).bounds(this.width / 2 - 102, this.height / 4 + 144, 204, 20).build();
 		this.addRenderableWidget(chatlogBtn);
 	}

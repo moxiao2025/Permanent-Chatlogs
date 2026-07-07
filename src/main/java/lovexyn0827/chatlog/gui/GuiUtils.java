@@ -17,14 +17,14 @@ final class GuiUtils {
 			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.sload.failongoing"), 
 					I18N.translateAsText("gui.sload.failongoing.desc"));
-			Minecraft.getInstance().getToastManager().addToast(warning);
+			Minecraft.getInstance().gui.toastManager().addToast(warning);
 		}
 		
 		try {
 			Session session = summary.load();
 			if (session != null) {
 				ChatLogScreen screen = new ChatLogScreen(summary, session, parentScreen);
-				mc.setScreen(screen);
+				mc.gui.setScreen(screen);
 				if (ordinalInSession > 0) {
 					screen.scrollTo(ordinalInSession);
 				}
@@ -32,7 +32,7 @@ final class GuiUtils {
 				SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 						I18N.translateAsText("gui.sload.failure"), 
 						I18N.translateAsText("gui.sload.failure.desc"));
-				Minecraft.getInstance().getToastManager().addToast(warning);
+				Minecraft.getInstance().gui.toastManager().addToast(warning);
 				return false;
 			}
 		} catch (Exception e) {

@@ -26,7 +26,7 @@ import net.minecraft.client.gui.components.Checkbox;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.advancements.criterion.MinMaxBounds.Ints;
+import net.minecraft.advancements.predicates.MinMaxBounds.Ints;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
@@ -110,11 +110,11 @@ public final class FilterSessionScreen extends Screen {
 		}
 		
 		if (!this.contents.getValue().isEmpty()) {
-			this.minecraft.setScreen(new FullTextSearchProgressScreen(
+			this.minecraft.gui.setScreen(new FullTextSearchProgressScreen(
 					this.parent, this.filterer, this.contents.getValue(), this.caseSenstive.selected()));
 		} else {
 			this.filterer = this.filterer.and((s) -> this.scopeBtn.getValue().test(s));
-			this.minecraft.setScreen(new SessionListScreen(this.parent,this.filterer));
+			this.minecraft.gui.setScreen(new SessionListScreen(this.parent,this.filterer));
 		}
 	}
 	
@@ -179,7 +179,6 @@ public final class FilterSessionScreen extends Screen {
 	
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float delta) {
-		this.extractBackground(ctx, mouseY, mouseY, delta);
 		int width = this.minecraft.getWindow().getGuiScaledWidth();
 		int height = this.minecraft.getWindow().getGuiScaledHeight();
 		ctx.centeredText(this.font, I18N.translateAsText("gui.filter.savename"), 

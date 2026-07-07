@@ -60,7 +60,7 @@ public final class SessionListScreen extends Screen {
 				(btn) -> {
 					SessionList.SessionEntry entry = this.displayedSessions.getFocused();
 					if (entry != null ) {
-						this.minecraft.setScreen(new ExportSessionScreen(minecraft.screen, entry.summary));
+						this.minecraft.gui.setScreen(new ExportSessionScreen(this.minecraft.gui.screen(), entry.summary));
 					}
 				})
 				.bounds(this.width / 2 - 40, openBtnYPos, 80, 20)
@@ -69,29 +69,29 @@ public final class SessionListScreen extends Screen {
 				(btn) -> {
 					SessionList.SessionEntry entry = this.displayedSessions.getFocused();
 					if (entry != null ) {
-						this.minecraft.setScreen(new ConfirmScreen((confirmed) -> {
+						this.minecraft.gui.setScreen(new ConfirmScreen((confirmed) -> {
 							if (confirmed) {
 								IntLinkedOpenHashSet ids = new IntLinkedOpenHashSet();
 								ids.add(entry.summary.id);
 								Session.delete(ids);
 							}
 							
-							this.minecraft.setScreen(this);
+							this.minecraft.gui.setScreen(this);
 						}, I18N.translateAsText("gui.del.title"), I18N.translateAsText("gui.del.desc")));
 					}
 				})
 				.bounds(this.width / 2 + 48, openBtnYPos, 80, 20)
 				.build();
 		Button filterBtn = Button.builder(I18N.translateAsText("gui.filter"), 
-						(btn) -> this.minecraft.setScreen(new FilterSessionScreen(minecraft.screen)))
+						(btn) -> this.minecraft.gui.setScreen(new FilterSessionScreen(this.minecraft.gui.screen())))
 				.bounds(this.width / 2 - 128, 20, 80, 20)
 				.build();
 		Button settingBtn = Button.builder(I18N.translateAsText("gui.settings"), 
-						(btn) -> this.minecraft.setScreen(new SettingScreen(minecraft.screen)))
+						(btn) -> this.minecraft.gui.setScreen(new SettingScreen(this.minecraft.gui.screen())))
 				.bounds(this.width / 2 - 40, 20, 80, 20)
 				.build();
 		Button exitBtn = Button.builder(CommonComponents.GUI_BACK, 
-						(btn) -> this.minecraft.setScreen(this.parent))
+						(btn) -> this.minecraft.gui.setScreen(this.parent))
 				.bounds(this.width / 2 + 48, 20, 80, 20)
 				.build();
 		if (this.enablePaging) {
@@ -117,7 +117,6 @@ public final class SessionListScreen extends Screen {
 	
 	@Override
 	public void extractRenderState(GuiGraphicsExtractor ctx, int mouseX, int mouseY, float delta) {
-		this.extractBackground(ctx, mouseY, mouseY, delta);
         ctx.centeredText(
                 this.minecraft.font,
                 this.title,
@@ -130,7 +129,7 @@ public final class SessionListScreen extends Screen {
 
     @Override
     public void onClose() {
-        this.minecraft.setScreen(this.parent);
+        this.minecraft.gui.setScreen(this.parent);
     }
 	
 	private final class SessionList extends ObjectSelectionList<SessionList.SessionEntry> {

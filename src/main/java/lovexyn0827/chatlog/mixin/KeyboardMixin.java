@@ -32,11 +32,11 @@ public abstract class KeyboardMixin {
 				Session.Event sessionEvent = new Session.Event(title, 
 						System.currentTimeMillis(), DyeColor.RED.getTextColor());
 				SessionRecorder.current().addEvent(sessionEvent);
-				this.minecraft.gui.setOverlayMessage(title, true);
+				this.minecraft.gui.hud.setOverlayMessage(title, true);
 				return;
 			}
 			
-			Minecraft.getInstance().setScreen(new NewEventMarkerScreen());
+			Minecraft.getInstance().gui.setScreen(new NewEventMarkerScreen());
 		}
 	}
 }

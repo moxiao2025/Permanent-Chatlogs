@@ -76,7 +76,7 @@ public class ExportSessionScreen extends Screen {
 			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.export.nodir"), 
 					I18N.translateAsText("gui.export.nodir.desc"));
-			Minecraft.getInstance().getToastManager().addToast(warning);
+			Minecraft.getInstance().gui.toastManager().addToast(warning);
 			return;
 		}
 		
@@ -86,7 +86,7 @@ public class ExportSessionScreen extends Screen {
 			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.sload.failure"), 
 					I18N.translateAsText("gui.sload.failure.desc"));
-			Minecraft.getInstance().getToastManager().addToast(warning);
+			Minecraft.getInstance().gui.toastManager().addToast(warning);
 		}
 		
 		File target = new File(EXPORT_FOLDER, this.fileName.getValue() + "." + extension);
@@ -99,7 +99,7 @@ public class ExportSessionScreen extends Screen {
 			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.export.fail"), 
 					I18N.translateAsText("gui.export.fail.desc"));
-			Minecraft.getInstance().getToastManager().addToast(warning);
+			Minecraft.getInstance().gui.toastManager().addToast(warning);
 			return;
 		}
 		
@@ -112,6 +112,6 @@ public class ExportSessionScreen extends Screen {
 	
 	@Override
 	public void onClose() {
-		this.minecraft.setScreen(this.parent);
+		this.minecraft.gui.setScreen(this.parent);
 	}
 }

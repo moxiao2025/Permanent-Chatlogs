@@ -150,7 +150,7 @@ public class UnsavedChatlogRecovery {
 			SystemToast warning = new SystemToast(new SystemToast.SystemToastId(), 
 					I18N.translateAsText("gui.restore.failure"), 
 					I18N.translateAsText("gui.restore.failure.desc"));
-			Minecraft.getInstance().getToastManager().addToast(warning);
+			Minecraft.getInstance().gui.toastManager().addToast(warning);
 		}
 		
 		SessionUtils.lockFileOf(unsaved).delete();
